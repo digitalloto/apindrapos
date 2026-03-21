@@ -274,6 +274,19 @@
         </div>
       </div>
     </section>
+
+    <!-- DEMO PANEL -->
+    <section class="card demo-section">
+      <h2>INTERACTIVE DEMOS — Click to Run</h2>
+      <div class="demo-grid" id="demo-grid">
+        <!-- Populated by JavaScript -->
+      </div>
+      <div class="demo-status" id="demo-status">
+        <span id="demo-running-text">No demo running</span>
+        <button id="btn-demo-stop" class="btn btn-stop" style="display:none">STOP DEMO</button>
+      </div>
+      <div class="demo-log" id="demo-log"></div>
+    </section>
   </main>
 
   <!-- FOOTER -->
@@ -281,6 +294,7 @@
     UPIE — 24 Positioning Layers — MiroFish Swarm Intelligence — Patent Pending — AIMCRS
     — Abheet Prem Manghnani — Chennai, India
     — HUMAN IN THE LOOP — AI assists, human decides, always.
+    <span style="margin-left:16px"><a href="#" onclick="fetch('/auth/logout',{method:'POST'}).then(()=>location.href='/login')" style="color:#e74c3c;text-decoration:none">LOGOUT</a></span>
   </footer>
 
   <script src="/js/dashboard.js"></script>

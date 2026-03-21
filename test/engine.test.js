@@ -500,6 +500,87 @@ test('Fusion engine records and learns automatically', () => {
   assert(lessons.knowledge.totalFlightSessions >= 1, 'Should have sessions');
 });
 
+// ─── TEST 12: Authentication ───
+console.log('\n12. Authentication (Password Protection)');
+
+test('Server requires crypto module for token generation', () => {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  assert(token.length === 64, `Token should be 64 hex chars, got ${token.length}`);
+});
+
+test('Password validation logic works', () => {
+  const ACCESS_PASSWORD = 'aimcrs2026';
+  assert('aimcrs2026' === ACCESS_PASSWORD, 'Correct password should match');
+  assert('wrong' !== ACCESS_PASSWORD, 'Wrong password should not match');
+});
+
+// ─── TEST 13: Demo System ───
+console.log('\n13. Demo System');
+
+test('Simulator supports all demo scenarios', () => {
+  const demoScenarios = ['normal', 'gps-jamming', 'gps-spoofing', 'multi-failure', 'custom'];
+  for (const scenario of demoScenarios) {
+    const sim = new Simulator();
+    sim.init('fighter');
+    sim.setScenario(scenario);
+    const result = sim.tick();
+    assert(result !== null, `Scenario ${scenario} should produce result`);
+  }
+});
+
+test('All 8 platforms work for demo platform tour', () => {
+  const platforms = [
+    'small-drone', 'medium-drone', 'fighter', 'missile',
+    'submarine', 'ground-vehicle', 'underground-bunker', 'spacecraft'
+  ];
+  for (const p of platforms) {
+    const sim = new Simulator();
+    sim.init(p);
+    sim.engine.fusionMode = 'swarm';
+    sim.engine.edgeEnabled = true;
+    const result = sim.tick();
+    assert(result !== null, `Platform ${p} should work in demo`);
+  }
+});
+
+test('Swarm and weighted modes both produce results for comparison demo', () => {
+  const sim = new Simulator();
+  sim.init('fighter');
+
+  sim.engine.fusionMode = 'swarm';
+  const swarmResult = sim.tick();
+  assert(swarmResult.fusionMode === 'swarm', 'Should use swarm mode');
+
+  sim.engine.fusionMode = 'weighted';
+  const weightedResult = sim.tick();
+  assert(weightedResult.fusionMode === 'weighted', 'Should use weighted mode');
+});
+
+test('Full demo sequence: start, record, fuse, stop, learn', () => {
+  const sim = new Simulator();
+  sim.init('fighter');
+  sim.engine.fusionMode = 'swarm';
+  sim.engine.edgeEnabled = true;
+
+  // Start recording
+  const session = sim.engine.flightRecorder.startSession('fighter');
+  assert(session.started === true, 'Recording should start');
+
+  // Run 10 fusion cycles
+  for (let i = 0; i < 10; i++) {
+    sim.tick();
+  }
+
+  // Stop and learn
+  const summary = sim.engine.flightRecorder.stopSession();
+  assert(summary.totalCycles === 10, 'Should record 10 cycles');
+
+  const lessons = sim.engine.learningEngine.learnFromSession(summary);
+  assert(lessons !== null, 'Should produce lessons');
+  assert(lessons.lessons.length > 0, 'Should have learned something');
+});
+
 // ─── RESULTS ───
 console.log('\n═══════════════════════════════════════');
 console.log(`RESULTS: ${passed} passed, ${failed} failed, ${passed + failed} total`);

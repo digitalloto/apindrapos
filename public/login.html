@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPIE — Login — Patent Pending — AIMCRS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0e17;
+      color: #c8d6e5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      background: #111827;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 40px;
+      width: 420px;
+      text-align: center;
+    }
+    .login-container h1 {
+      font-size: 36px;
+      color: #1a73e8;
+      letter-spacing: 6px;
+      margin-bottom: 4px;
+    }
+    .login-container .subtitle {
+      font-size: 11px;
+      color: #5f7a9b;
+      margin-bottom: 8px;
+    }
+    .login-container .patent {
+      font-size: 10px;
+      color: #e74c3c;
+      margin-bottom: 24px;
+      display: block;
+    }
+    .hitl-badge {
+      background: #e67e22;
+      color: #000;
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: bold;
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 24px;
+    }
+    .login-container label {
+      display: block;
+      text-align: left;
+      color: #5f7a9b;
+      font-size: 11px;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .login-container input {
+      width: 100%;
+      padding: 12px;
+      background: #0d1321;
+      color: #c8d6e5;
+      border: 1px solid #1e3a5f;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .login-container input:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 8px rgba(26, 115, 232, 0.3);
+    }
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 2px;
+    }
+    .login-container button:hover { opacity: 0.9; }
+    .error-msg {
+      color: #e74c3c;
+      font-size: 12px;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+    .layers-badge {
+      display: inline-block;
+      background: #0d1321;
+      border: 1px solid #1e3a5f;
+      border-radius: 3px;
+      padding: 6px 14px;
+      font-size: 10px;
+      color: #5f7a9b;
+      margin-top: 20px;
+      letter-spacing: 1px;
+    }
+    .founder {
+      font-size: 10px;
+      color: #3a4a5f;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h1>UPIE</h1>
+    <div class="subtitle">Universal Positioning Intelligence Engine</div>
+    <span class="patent">PATENT PENDING — AIMCRS</span>
+    <div class="hitl-badge">HUMAN IN THE LOOP</div>
+
+    <form id="login-form">
+      <label>ACCESS CODE</label>
+      <input type="password" id="password" placeholder="Enter access code" autofocus>
+      <button type="submit">AUTHENTICATE</button>
+    </form>
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="layers-badge">24 POSITIONING LAYERS — MIROFISH SWARM INTELLIGENCE</div>
+    <div class="founder">Abheet Prem Manghnani — Founder & Inventor — Chennai, India</div>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error-msg');
+      errorEl.textContent = '';
+
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = '/';
+        } else {
+          errorEl.textContent = data.error || 'Access denied';
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }
+      } catch (err) {
+        errorEl.textContent = 'Connection error';
+      }
+    });
+  </script>
+</body>
+</html>

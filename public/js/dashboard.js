@@ -45,6 +45,7 @@ const LAYER_DEFS = [
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   buildLayerGrid();
+  buildDemoGrid();
   setupControls();
   connectWebSocket();
 });
@@ -170,6 +171,12 @@ function connectWebSocket() {
     const msg = JSON.parse(event.data);
     if (msg.type === 'fusion') {
       updateDashboard(msg.data, msg.layers);
+    } else if (msg.type === 'demo') {
+      addDemoLog(msg.step);
+      // Auto-stop demo display if complete
+      if (msg.step && msg.step.startsWith('Demo complete')) {
+        stopDemo();
+      }
     }
   });
 
@@ -332,6 +339,99 @@ function updateLayers(layers) {
       acc.textContent = `${Math.round(range[0])}-${Math.round(range[1])}m`;
     }
   }
+}
+
+// ═══════════════════════════════════════════
+// DEMO SYSTEM
+// ═══════════════════════════════════════════
+
+let currentDemo = null;
+
+function buildDemoGrid() {
+  fetch('/api/demos')
+    .then(r => r.json())
+    .then(demos => {
+      const grid = document.getElementById('demo-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      for (const demo of demos) {
+        const card = document.createElement('div');
+        card.className = 'demo-card';
+        card.id = `demo-${demo.id}`;
+        card.innerHTML = `
+          <div class="demo-name">${demo.name}</div>
+          <div class="demo-desc">${demo.description}</div>
+          <div class="demo-duration">${demo.duration}</div>
+        `;
+        card.addEventListener('click', () => runDemo(demo.id, demo.name));
+        grid.appendChild(card);
+      }
+    })
+    .catch(() => {});
+
+  // Stop demo button
+  const stopBtn = document.getElementById('btn-demo-stop');
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      fetch('/api/demo/stop', { method: 'POST' });
+      stopDemo();
+    });
+  }
+}
+
+function runDemo(demoId, demoName) {
+  // Clear previous demo state
+  if (currentDemo) {
+    const prevCard = document.getElementById(`demo-${currentDemo}`);
+    if (prevCard) prevCard.classList.remove('running');
+  }
+
+  currentDemo = demoId;
+  const card = document.getElementById(`demo-${demoId}`);
+  if (card) card.classList.add('running');
+
+  const statusText = document.getElementById('demo-running-text');
+  const stopBtn = document.getElementById('btn-demo-stop');
+  if (statusText) { statusText.textContent = `Running: ${demoName}`; statusText.className = 'active'; }
+  if (stopBtn) stopBtn.style.display = 'inline-block';
+
+  // Clear log
+  const log = document.getElementById('demo-log');
+  if (log) log.innerHTML = '';
+  addDemoLog(`Started: ${demoName}`);
+
+  fetch('/api/demo/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ demoId })
+  }).then(r => r.json()).then(data => {
+    if (data.message) addDemoLog(data.message);
+  });
+}
+
+function stopDemo() {
+  if (currentDemo) {
+    const card = document.getElementById(`demo-${currentDemo}`);
+    if (card) card.classList.remove('running');
+  }
+  currentDemo = null;
+  const statusText = document.getElementById('demo-running-text');
+  const stopBtn = document.getElementById('btn-demo-stop');
+  if (statusText) { statusText.textContent = 'No demo running'; statusText.className = ''; }
+  if (stopBtn) stopBtn.style.display = 'none';
+  addDemoLog('Demo stopped');
+}
+
+function addDemoLog(message) {
+  const log = document.getElementById('demo-log');
+  if (!log) return;
+  const now = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'demo-log-entry';
+  entry.innerHTML = `<span class="log-time">${now}</span><span class="log-step">${message}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  // Keep max 20 entries
+  while (log.children.length > 20) log.removeChild(log.lastChild);
 }
 
 function updateAlerts(alerts) {
