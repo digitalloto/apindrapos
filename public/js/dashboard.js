@@ -1,32 +1,47 @@
 /**
- * UPIE Dashboard — Client-side JavaScript
+ * UPIE Dashboard — 24 Layers — MiroFish Swarm — Client JavaScript
  * Patent Pending — AIMCRS
  *
  * Connects to server via WebSocket for real-time fusion data.
- * Updates dashboard every fusion cycle.
  * HUMAN IN THE LOOP — all data displayed for operator decision.
  */
 
 // ═══════════════════════════════════════════
-// LAYER DEFINITIONS — for building the grid
+// ALL 24 LAYER DEFINITIONS — with categories
 // ═══════════════════════════════════════════
 const LAYER_DEFS = [
-  { id: 1, name: 'GPS / GNSS' },
-  { id: 2, name: 'NAVIC (Indian)' },
-  { id: 3, name: 'INS Dead Reckoning' },
-  { id: 4, name: 'Star Tracking' },
-  { id: 5, name: 'Terrain Matching' },
-  { id: 6, name: 'Magnetic Anomaly' },
-  { id: 7, name: 'Ground Emitters' },
-  { id: 8, name: 'WiFi Mapping' },
-  { id: 9, name: 'Cell Tower' },
-  { id: 10, name: 'Acoustic (Underwater)' },
-  { id: 11, name: 'Barometric Alt' },
-  { id: 12, name: 'Doppler Velocity' }
+  // Row 1: Satellite systems
+  { id: 1,  name: 'GPS / GNSS',        cat: 'satellite' },
+  { id: 2,  name: 'NAVIC (India)',      cat: 'satellite' },
+  { id: 14, name: 'GLONASS (Russia)',   cat: 'satellite' },
+  { id: 15, name: 'Galileo (Europe)',   cat: 'satellite' },
+  { id: 16, name: 'BeiDou (China)',     cat: 'satellite' },
+  { id: 4,  name: 'Star Tracking',     cat: 'celestial' },
+  // Row 2: Celestial + Internal
+  { id: 13, name: 'Sun/Moon Celestial', cat: 'celestial' },
+  { id: 23, name: 'Pulsar XNAV',       cat: 'celestial' },
+  { id: 3,  name: 'INS Dead Reckoning', cat: 'internal' },
+  { id: 12, name: 'Doppler Velocity',  cat: 'internal' },
+  { id: 24, name: 'Quantum Compass',   cat: 'frontier' },
+  { id: 20, name: 'Visual Odometry',   cat: 'ground' },
+  // Row 3: Ground + Terrain
+  { id: 5,  name: 'Terrain Matching',  cat: 'ground' },
+  { id: 6,  name: 'Magnetic Anomaly',  cat: 'ground' },
+  { id: 7,  name: 'Ground Emitters',   cat: 'ground' },
+  { id: 17, name: 'Gravity Gradient',  cat: 'ground' },
+  { id: 10, name: 'Acoustic (Water)',  cat: 'ground' },
+  { id: 22, name: 'Cosmic Ray/Muon',   cat: 'frontier' },
+  // Row 4: Signal + Altitude
+  { id: 8,  name: 'WiFi Mapping',      cat: 'signal' },
+  { id: 9,  name: 'Cell Tower',        cat: 'signal' },
+  { id: 18, name: 'RF Fingerprint',    cat: 'signal' },
+  { id: 21, name: 'eLoran Radio',      cat: 'signal' },
+  { id: 11, name: 'Barometric Alt',    cat: 'internal' },
+  { id: 19, name: 'Radar Altimetry',   cat: 'internal' }
 ];
 
 // ═══════════════════════════════════════════
-// INIT — Build layer grid on page load
+// INIT
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   buildLayerGrid();
@@ -39,7 +54,7 @@ function buildLayerGrid() {
   grid.innerHTML = '';
   for (const layer of LAYER_DEFS) {
     const card = document.createElement('div');
-    card.className = 'layer-card inactive';
+    card.className = `layer-card inactive cat-${layer.cat}`;
     card.id = `layer-${layer.id}`;
     card.innerHTML = `
       <div class="layer-id">${layer.id}</div>
@@ -47,7 +62,6 @@ function buildLayerGrid() {
       <div class="layer-accuracy" id="layer-acc-${layer.id}">—</div>
       <div class="layer-status-dot grey" id="layer-dot-${layer.id}"></div>
     `;
-    // Click to toggle layer
     card.addEventListener('click', () => toggleLayer(layer.id));
     grid.appendChild(card);
   }
@@ -88,6 +102,14 @@ function setupControls() {
       body: JSON.stringify({ scenario: e.target.value })
     });
   });
+
+  document.getElementById('fusion-mode-select').addEventListener('change', (e) => {
+    fetch('/api/fusion-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: e.target.value })
+    });
+  });
 }
 
 function toggleLayer(layerId) {
@@ -99,7 +121,7 @@ function toggleLayer(layerId) {
 }
 
 // ═══════════════════════════════════════════
-// WEBSOCKET — Real-time data from server
+// WEBSOCKET
 // ═══════════════════════════════════════════
 let ws = null;
 
@@ -111,13 +133,10 @@ function connectWebSocket() {
     const msg = JSON.parse(event.data);
     if (msg.type === 'fusion') {
       updateDashboard(msg.data, msg.layers);
-    } else if (msg.type === 'init') {
-      // Initial state
     }
   });
 
   ws.addEventListener('close', () => {
-    // Reconnect after 2 seconds
     setTimeout(connectWebSocket, 2000);
   });
 }
@@ -140,13 +159,15 @@ function updateDashboard(data, layers) {
   document.getElementById('fusion-cycle').textContent = data.fusionCycle || 0;
   document.getElementById('active-layers').textContent = data.activeLayerCount || 0;
   document.getElementById('valid-layers').textContent = data.validLayerCount || 0;
+  document.getElementById('fusion-mode-display').textContent =
+    data.fusionMode === 'swarm' ? 'SWARM' : 'WEIGHTED';
 
-  // Confidence gauge
+  // Confidence
   if (data.confidence) {
     updateGauge(data.confidence);
   }
 
-  // Layer statuses
+  // Layers
   if (layers) {
     updateLayers(layers);
   }
@@ -164,7 +185,6 @@ function updateGauge(confidence) {
   const levelEl = document.getElementById('confidence-level');
   const messageEl = document.getElementById('confidence-message');
 
-  // Update gauge visual — conic gradient
   let color = '#2ecc71';
   if (score < 40) color = '#e74c3c';
   else if (score < 60) color = '#e67e22';
@@ -173,7 +193,6 @@ function updateGauge(confidence) {
   gauge.style.background = `conic-gradient(${color} ${score * 3.6}deg, #1e3a5f ${score * 3.6}deg)`;
   gaugeText.textContent = score + '%';
   gaugeText.style.color = color;
-
   levelEl.textContent = confidence.level;
   levelEl.style.color = color;
   messageEl.textContent = confidence.message;
@@ -184,11 +203,13 @@ function updateLayers(layers) {
     const card = document.getElementById(`layer-${layer.id}`);
     const dot = document.getElementById(`layer-dot-${layer.id}`);
     const acc = document.getElementById(`layer-acc-${layer.id}`);
-
     if (!card) continue;
 
-    // Reset classes
-    card.className = 'layer-card';
+    // Get category from LAYER_DEFS
+    const def = LAYER_DEFS.find(d => d.id === layer.id);
+    const catClass = def ? `cat-${def.cat}` : '';
+
+    card.className = `layer-card ${catClass}`;
 
     if (!layer.active) {
       card.classList.add('inactive');
@@ -219,15 +240,13 @@ function updateAlerts(alerts) {
     return;
   }
 
-  // Add new alerts at the top — keep last 20
+  const empty = list.querySelector('.alert-empty');
+  if (empty) empty.remove();
+
   const existingAlerts = list.querySelectorAll('.alert-item');
   if (existingAlerts.length > 20) {
     list.removeChild(list.lastChild);
   }
-
-  // Remove the "no alerts" message if present
-  const empty = list.querySelector('.alert-empty');
-  if (empty) empty.remove();
 
   for (const alert of alerts) {
     const div = document.createElement('div');

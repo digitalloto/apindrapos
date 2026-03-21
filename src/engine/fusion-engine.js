@@ -17,12 +17,17 @@
 const { createAllLayers } = require('../layers');
 const ConfidenceScorer = require('./confidence-scorer');
 const SpoofDetector = require('./spoof-detector');
+const SwarmFusionEngine = require('./swarm-fusion');
+const SensorInterface = require('../sensors/sensor-interface');
 
 class FusionEngine {
   constructor(platformProfile) {
     this.allLayers = createAllLayers();
     this.confidenceScorer = new ConfidenceScorer();
     this.spoofDetector = new SpoofDetector();
+    this.sensorInterface = new SensorInterface();
+    this.swarmEngine = new SwarmFusionEngine();
+    this.fusionMode = 'swarm';  // 'swarm' (MiroFish) or 'weighted' (simple average)
     this.activeLayers = [];
     this.lastFusedResult = null;
     this.fusionCount = 0;
@@ -49,23 +54,41 @@ class FusionEngine {
     // ─── STEP 1: COLLECT ───
     const readings = this.collectReadings(truePosition);
 
-    // ─── STEP 2: COMPARE ───
-    const comparison = this.compareReadings(readings);
+    let result;
 
-    // ─── STEP 3: CANCEL ERRORS ───
-    const filtered = this.cancelErrors(comparison);
+    if (this.fusionMode === 'swarm') {
+      // ═══ MIROFISH SWARM MODE ═══
+      // Each layer is a fish — swarm finds consensus position
+      const positionReadings = readings.filter(r => r.lat !== null && r.lon !== null);
+      const altitudeReadings = readings.filter(r => r.altitudeOnly);
+      const swarmResult = this.swarmEngine.fuse(positionReadings, altitudeReadings, this.allLayers);
 
-    // ─── STEP 4: OUTPUT ───
-    const result = this.produceOutput(filtered);
+      result = {
+        ...swarmResult,
+        activeLayerCount: readings.length,
+        validLayerCount: swarmResult.schoolSize,
+        removedLayerCount: swarmResult.outerFish,
+        removedLayers: swarmResult.outerFishNames || [],
+        fusionMode: 'swarm'
+      };
 
-    // Check for spoofing/jamming
-    result.spoofAlerts = this.spoofDetector.analyse(readings, result);
+      // Spoof detection from outer fish
+      result.spoofAlerts = this.spoofDetector.analyse(readings, result);
 
-    // Calculate confidence score
-    result.confidence = this.confidenceScorer.calculate(filtered, result);
+    } else {
+      // ═══ WEIGHTED AVERAGE MODE ═══
+      // Classic approach — compare, cancel errors, weighted output
+      const comparison = this.compareReadings(readings);
+      const filtered = this.cancelErrors(comparison);
+      result = this.produceOutput(filtered);
+      result.fusionMode = 'weighted';
+      result.spoofAlerts = this.spoofDetector.analyse(readings, result);
+      result.confidence = this.confidenceScorer.calculate(filtered, result);
+    }
 
     // Store history for drift learning
     this.fusionCount++;
+    result.fusionCycle = this.fusionCount;
     this.history.push({ timestamp: Date.now(), result });
     if (this.history.length > 100) this.history.shift();
 
@@ -75,10 +98,20 @@ class FusionEngine {
 
   // ─── STEP 1: COLLECT ───
   // Gather position readings from all active layers simultaneously
+  // Uses REAL sensor data when available, simulated data otherwise
   collectReadings(truePosition) {
     const readings = [];
     for (const layer of this.allLayers) {
       if (!layer.active) continue;
+
+      // Check if real sensor data is available for this layer
+      const realReading = this.sensorInterface.getReading(layer.id);
+      if (realReading) {
+        readings.push(realReading);
+        continue;
+      }
+
+      // Fall back to simulation
       const reading = layer.generateReading(truePosition);
       if (reading) {
         readings.push(reading);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UPIE — Universal Positioning Intelligence Engine</title>
+  <title>UPIE — Universal Positioning Intelligence Engine — 24 Layers</title>
   <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
   <header>
     <div class="header-left">
       <h1>UPIE</h1>
-      <span class="subtitle">Universal Positioning Intelligence Engine</span>
+      <span class="subtitle">Universal Positioning Intelligence Engine — 24 Layers</span>
     </div>
     <div class="header-right">
       <span class="patent">PATENT PENDING — AIMCRS</span>
@@ -43,8 +43,9 @@
         <div class="position-meta">
           <span>Error: <strong id="error-metres">—</strong> m</span>
           <span>Cycle: <strong id="fusion-cycle">0</strong></span>
-          <span>Active: <strong id="active-layers">0</strong>/12</span>
+          <span>Active: <strong id="active-layers">0</strong>/24</span>
           <span>Valid: <strong id="valid-layers">0</strong></span>
+          <span>Mode: <strong id="fusion-mode-display">SWARM</strong></span>
         </div>
       </div>
 
@@ -62,9 +63,17 @@
       </div>
     </section>
 
-    <!-- MIDDLE ROW: Layer Status Grid -->
+    <!-- LAYER STATUS GRID — 24 Layers in 6 columns x 4 rows -->
     <section class="card layers-section">
-      <h2>12 POSITIONING LAYERS — Live Status</h2>
+      <h2>24 POSITIONING LAYERS — Live Status</h2>
+      <div class="layer-categories">
+        <span class="cat-label cat-satellite">SATELLITE</span>
+        <span class="cat-label cat-celestial">CELESTIAL</span>
+        <span class="cat-label cat-internal">INTERNAL</span>
+        <span class="cat-label cat-ground">GROUND</span>
+        <span class="cat-label cat-signal">SIGNAL</span>
+        <span class="cat-label cat-frontier">FRONTIER</span>
+      </div>
       <div class="layers-grid" id="layers-grid">
         <!-- Populated by JavaScript -->
       </div>
@@ -85,6 +94,8 @@
             <option value="missile">Cruise Missile</option>
             <option value="submarine">Submarine</option>
             <option value="ground-vehicle">Ground Vehicle</option>
+            <option value="underground-bunker">Underground / Bunker</option>
+            <option value="spacecraft">Spacecraft / Deep Space</option>
           </select>
         </div>
 
@@ -96,6 +107,14 @@
             <option value="gps-spoofing">GPS Spoofing</option>
             <option value="multi-failure">Multiple Failures</option>
             <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Fusion Mode:</label>
+          <select id="fusion-mode-select">
+            <option value="swarm" selected>MiroFish Swarm (Recommended)</option>
+            <option value="weighted">Weighted Average (Classic)</option>
           </select>
         </div>
 
@@ -122,7 +141,8 @@
 
   <!-- FOOTER -->
   <footer>
-    UPIE — Patent Pending — AIMCRS — Abheet Prem Manghnani — Chennai, India
+    UPIE — 24 Positioning Layers — MiroFish Swarm Intelligence — Patent Pending — AIMCRS
+    — Abheet Prem Manghnani — Chennai, India
     — HUMAN IN THE LOOP — AI assists, human decides, always.
   </footer>
 

@@ -157,11 +157,34 @@ main { padding: 16px; }
   color: #5f7a9b;
 }
 
-/* LAYERS GRID */
+/* LAYER CATEGORIES */
+.layer-categories {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.cat-label {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.cat-satellite { background: #1a73e8; color: #fff; }
+.cat-celestial { background: #9b59b6; color: #fff; }
+.cat-internal { background: #e67e22; color: #000; }
+.cat-ground { background: #2ecc71; color: #000; }
+.cat-signal { background: #f1c40f; color: #000; }
+.cat-frontier { background: #e74c3c; color: #fff; }
+
+/* LAYERS GRID — 6 columns x 4 rows = 24 layers */
 .layers-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .layer-card {
@@ -224,6 +247,14 @@ main { padding: 16px; }
 .layer-status-dot.red { background: #e74c3c; }
 .layer-status-dot.orange { background: #e67e22; }
 .layer-status-dot.grey { background: #555; }
+
+/* Category border colours on active layer cards */
+.layer-card.active.cat-satellite { border-color: #1a73e8; box-shadow: 0 0 6px rgba(26,115,232,0.3); }
+.layer-card.active.cat-celestial { border-color: #9b59b6; box-shadow: 0 0 6px rgba(155,89,182,0.3); }
+.layer-card.active.cat-internal { border-color: #e67e22; box-shadow: 0 0 6px rgba(230,126,34,0.3); }
+.layer-card.active.cat-ground { border-color: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,0.3); }
+.layer-card.active.cat-signal { border-color: #f1c40f; box-shadow: 0 0 6px rgba(241,196,15,0.3); }
+.layer-card.active.cat-frontier { border-color: #e74c3c; box-shadow: 0 0 6px rgba(231,76,60,0.3); }
 
 /* BOTTOM ROW */
 .bottom-row {

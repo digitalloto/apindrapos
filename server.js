@@ -1,5 +1,5 @@
 /**
- * UPIE — Server
+ * UPIE — Server — 24 Layers + MiroFish Swarm + Sensor Interface
  * Patent Pending — AIMCRS
  *
  * Express server on port 5000
@@ -98,6 +98,64 @@ app.post('/api/layer/toggle', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// FUSION MODE — Switch between Swarm and Weighted
+// ═══════════════════════════════════════════
+
+app.post('/api/fusion-mode', (req, res) => {
+  const { mode } = req.body;  // 'swarm' or 'weighted'
+  if (mode !== 'swarm' && mode !== 'weighted') {
+    return res.status(400).json({ error: 'Mode must be "swarm" or "weighted"' });
+  }
+  simulator.engine.fusionMode = mode;
+  res.json({ success: true, fusionMode: mode });
+});
+
+app.get('/api/fusion-mode', (req, res) => {
+  res.json({ fusionMode: simulator.engine ? simulator.engine.fusionMode : 'swarm' });
+});
+
+// ═══════════════════════════════════════════
+// SENSOR INTERFACE — Feed real sensor data
+// ═══════════════════════════════════════════
+
+// Feed real sensor data into UPIE
+app.post('/api/sensor/feed', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  const result = simulator.engine.sensorInterface.feedData(req.body);
+  res.json(result);
+});
+
+// Register a real sensor
+app.post('/api/sensor/register', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  const { layerId, sensorName } = req.body;
+  simulator.engine.sensorInterface.registerSensor(layerId, sensorName);
+  res.json({ success: true, layerId, sensorName });
+});
+
+// Disconnect a sensor
+app.post('/api/sensor/disconnect', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  const { layerId } = req.body;
+  simulator.engine.sensorInterface.disconnectSensor(layerId);
+  res.json({ success: true, layerId });
+});
+
+// Get sensor status
+app.get('/api/sensor/status', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.sensorInterface.getAllSensorStatus());
+});
+
+// ═══════════════════════════════════════════
 // WEBSOCKET — Real-time fusion data to dashboard
 // ═══════════════════════════════════════════
 
@@ -131,12 +189,15 @@ server.listen(PORT, () => {
   console.log('');
   console.log('═══════════════════════════════════════════════════════');
   console.log('  UPIE — Universal Positioning Intelligence Engine');
+  console.log('  24 Positioning Layers — MiroFish Swarm Fusion');
   console.log('  Patent Pending — AIMCRS');
   console.log('  Abheet Prem Manghnani — Founder & Inventor');
   console.log('═══════════════════════════════════════════════════════');
-  console.log(`  Dashboard:  http://localhost:${PORT}`);
-  console.log(`  Platform:   ${process.env.DEFAULT_PLATFORM || 'fighter'}`);
-  console.log(`  Simulation: ${process.env.SIMULATION_MODE === 'true' ? 'ON' : 'OFF'}`);
+  console.log(`  Dashboard:    http://localhost:${PORT}`);
+  console.log(`  Platform:     ${process.env.DEFAULT_PLATFORM || 'fighter'}`);
+  console.log(`  Fusion Mode:  MiroFish Swarm Intelligence`);
+  console.log(`  Layers:       24 positioning methods`);
+  console.log(`  Simulation:   ${process.env.SIMULATION_MODE === 'true' ? 'ON' : 'OFF'}`);
   console.log('═══════════════════════════════════════════════════════');
   console.log('  HUMAN IN THE LOOP — AI assists, human decides, always.');
   console.log('═══════════════════════════════════════════════════════');
