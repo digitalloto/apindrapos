@@ -19,6 +19,7 @@ const ConfidenceScorer = require('./confidence-scorer');
 const SpoofDetector = require('./spoof-detector');
 const SwarmFusionEngine = require('./swarm-fusion');
 const SensorInterface = require('../sensors/sensor-interface');
+const EdgeProcessor = require('../edge/edge-processor');
 
 class FusionEngine {
   constructor(platformProfile) {
@@ -27,6 +28,8 @@ class FusionEngine {
     this.spoofDetector = new SpoofDetector();
     this.sensorInterface = new SensorInterface();
     this.swarmEngine = new SwarmFusionEngine();
+    this.edgeProcessor = new EdgeProcessor();
+    this.edgeEnabled = true;    // edge processing on by default
     this.fusionMode = 'swarm';  // 'swarm' (MiroFish) or 'weighted' (simple average)
     this.activeLayers = [];
     this.lastFusedResult = null;
@@ -51,8 +54,14 @@ class FusionEngine {
   // MAIN FUSION CYCLE — runs every fraction of a second
   // ═══════════════════════════════════════════════════════════
   fuse(truePosition) {
-    // ─── STEP 1: COLLECT ───
-    const readings = this.collectReadings(truePosition);
+    // ─── STEP 1: COLLECT raw readings ───
+    let readings = this.collectReadings(truePosition);
+
+    // ─── STEP 1.5: EDGE PROCESSING — clean readings before fusion ───
+    // Kalman filter + spike detection + sliding window smoothing
+    if (this.edgeEnabled) {
+      readings = this.edgeProcessor.processReadings(readings);
+    }
 
     let result;
 
@@ -84,6 +93,27 @@ class FusionEngine {
       result.fusionMode = 'weighted';
       result.spoofAlerts = this.spoofDetector.analyse(readings, result);
       result.confidence = this.confidenceScorer.calculate(filtered, result);
+    }
+
+    // ─── POST-FUSION: Edge motion tracking + validation ───
+    if (this.edgeEnabled) {
+      const edgeResult = this.edgeProcessor.postFusionUpdate(result);
+      if (edgeResult) {
+        result.motionState = edgeResult.motionState;
+        result.trackValidation = edgeResult.validation;
+        result.edgeMetrics = edgeResult.edgeMetrics;
+        // Add track violation as spoof alert if detected
+        if (edgeResult.validation && !edgeResult.validation.valid) {
+          result.spoofAlerts = result.spoofAlerts || [];
+          result.spoofAlerts.push({
+            type: 'TRACK_VIOLATION',
+            message: edgeResult.validation.message,
+            severity: edgeResult.validation.severity || 'MEDIUM',
+            action: 'HUMAN REVIEW — position inconsistent with predicted track',
+            timestamp: Date.now()
+          });
+        }
+      }
     }
 
     // Store history for drift learning

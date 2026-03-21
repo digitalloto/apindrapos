@@ -176,6 +176,36 @@ function updateDashboard(data, layers) {
   if (data.spoofAlerts && data.spoofAlerts.length > 0) {
     updateAlerts(data.spoofAlerts);
   }
+
+  // Edge processor metrics
+  if (data.edgeMetrics) {
+    const em = data.edgeMetrics;
+    document.getElementById('edge-status').textContent = 'ON';
+    document.getElementById('edge-status').className = 'edge-on';
+    document.getElementById('edge-noise').textContent =
+      (em.totalNoiseRemoved || 0).toFixed(1) + ' m';
+    document.getElementById('edge-spikes').textContent = em.totalSpikesRejected || 0;
+    document.getElementById('edge-violations').textContent = em.trackViolations || 0;
+  }
+
+  // Motion tracker
+  if (data.motionState) {
+    const ms = data.motionState;
+    document.getElementById('motion-speed').textContent =
+      (ms.velocityMps || 0).toFixed(1) + ' m/s';
+    document.getElementById('motion-heading').textContent =
+      (ms.headingDeg || 0).toFixed(1) + '\u00B0';
+    document.getElementById('motion-accel').textContent =
+      (ms.accelerationMps2 || 0).toFixed(1) + ' m/s\u00B2';
+    const manEl = document.getElementById('motion-manoeuvre');
+    if (ms.manoeuvreDetected) {
+      manEl.textContent = (ms.manoeuvreType || 'UNKNOWN').toUpperCase();
+      manEl.style.color = '#e67e22';
+    } else {
+      manEl.textContent = 'NONE';
+      manEl.style.color = '#2ecc71';
+    }
+  }
 }
 
 function updateGauge(confidence) {

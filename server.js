@@ -156,6 +156,35 @@ app.get('/api/sensor/status', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// EDGE PROCESSOR — Local brain controls
+// ═══════════════════════════════════════════
+
+// Toggle edge processing on/off
+app.post('/api/edge/toggle', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  simulator.engine.edgeEnabled = !simulator.engine.edgeEnabled;
+  res.json({ success: true, edgeEnabled: simulator.engine.edgeEnabled });
+});
+
+// Get edge processor state
+app.get('/api/edge/state', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.edgeProcessor.getState());
+});
+
+// Get edge metrics
+app.get('/api/edge/metrics', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.edgeProcessor.getMetrics());
+});
+
+// ═══════════════════════════════════════════
 // WEBSOCKET — Real-time fusion data to dashboard
 // ═══════════════════════════════════════════
 

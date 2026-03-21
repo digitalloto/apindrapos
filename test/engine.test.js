@@ -243,6 +243,84 @@ test('Swarm fused position more accurate than worst individual layer', () => {
   assert(avgError < 500, `Average error ${avgError.toFixed(1)}m should be under 500m`);
 });
 
+// ─── TEST 9: Edge Processor ───
+console.log('\n9. Edge Processor (Local Brain)');
+
+const EdgeProcessor = require('../src/edge/edge-processor');
+const MotionTracker = require('../src/edge/motion-tracker');
+const { NoiseReducer, KalmanFilter1D } = require('../src/edge/noise-reducer');
+const EdgeSync = require('../src/edge/edge-sync');
+
+test('Kalman filter smooths noisy readings', () => {
+  const kf = new KalmanFilter1D(0.001, 0.1);
+  // Feed a value of 10 with noise — filter should converge to ~10
+  const results = [];
+  for (let i = 0; i < 20; i++) {
+    const noisy = 10 + (Math.random() - 0.5) * 2; // 10 ± 1
+    results.push(kf.update(noisy));
+  }
+  // Last filtered value should be close to 10
+  const lastVal = results[results.length - 1];
+  assert(Math.abs(lastVal - 10) < 1, `Filtered value ${lastVal.toFixed(3)} should be near 10`);
+});
+
+test('Noise reducer cleans a reading', () => {
+  const nr = new NoiseReducer();
+  const reading = {
+    layerId: 1, layerName: 'GPS', lat: 13.0827, lon: 80.2707,
+    alt: 100, accuracyMetres: 5, timestamp: Date.now()
+  };
+  const cleaned = nr.clean(reading);
+  assert(cleaned.edgeCleaned === true, 'Should mark as edge cleaned');
+  assert(cleaned.lat !== null, 'Should still have lat');
+});
+
+test('Motion tracker calculates speed and heading', () => {
+  const mt = new MotionTracker();
+  // Position 1 — starting point
+  mt.update({ lat: 13.0000, lon: 80.0000, alt: 100, timestamp: 1000000 });
+  // Position 2 — moved northeast after 1 second
+  mt.update({ lat: 13.0010, lon: 80.0010, alt: 100, timestamp: 1001000 });
+  const state = mt.getState();
+  assert(state.velocityMps > 0, 'Speed should be > 0');
+  assert(state.headingDeg >= 0 && state.headingDeg <= 360, 'Heading should be 0-360');
+  assert(state.predictedLat !== null, 'Should have predicted position');
+});
+
+test('Motion tracker validates position consistency', () => {
+  const mt = new MotionTracker();
+  mt.update({ lat: 13.0000, lon: 80.0000, alt: 100, timestamp: 1000000 });
+  mt.update({ lat: 13.0001, lon: 80.0001, alt: 100, timestamp: 1001000 });
+  // Validate a position that is close to predicted — should be valid
+  const validation = mt.validatePosition({ lat: 13.0002, lon: 80.0002, alt: 100 });
+  assert(validation.deviationMetres !== undefined, 'Should have deviation');
+});
+
+test('Edge processor cleans readings and tracks motion', () => {
+  const engine = new FusionEngine(getProfile('fighter'));
+  engine.edgeEnabled = true;
+  engine.fusionMode = 'swarm';
+  const truePos = { lat: 13.0827, lon: 80.2707, alt: 5000 };
+  // Run 5 cycles — edge should accumulate data
+  for (let i = 0; i < 5; i++) {
+    engine.fuse(truePos);
+  }
+  const metrics = engine.edgeProcessor.getMetrics();
+  assert(metrics.totalReadingsCleaned > 0, 'Should have cleaned readings');
+  assert(metrics.motionState.trackQuality > 0, 'Track quality should increase');
+});
+
+test('Edge sync buffers data when disconnected', () => {
+  const sync = new EdgeSync();
+  sync.disconnect();
+  const result = sync.prepareUplink({ localPosition: { lat: 13, lon: 80 }, motionState: {}, metrics: {} });
+  assert(result.buffered === true, 'Should buffer when disconnected');
+  assert(result.bufferSize === 1, 'Buffer should have 1 item');
+  // Reconnect and flush
+  const reconnect = sync.reconnect();
+  assert(reconnect.bufferedPackets === 1, 'Should flush 1 packet on reconnect');
+});
+
 // ─── RESULTS ───
 console.log('\n═══════════════════════════════════════');
 console.log(`RESULTS: ${passed} passed, ${failed} failed, ${passed + failed} total`);

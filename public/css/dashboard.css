@@ -351,6 +351,29 @@ main { padding: 16px; }
   margin-top: 4px;
 }
 
+/* EDGE PROCESSOR + MOTION TRACKER */
+.edge-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.edge-stat label {
+  display: block;
+  color: #5f7a9b;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.edge-stat span {
+  font-size: 16px;
+  color: #2ecc71;
+  font-weight: bold;
+}
+
+.edge-on { color: #2ecc71; }
+.edge-off { color: #e74c3c; }
+
 /* FOOTER */
 footer {
   text-align: center;
