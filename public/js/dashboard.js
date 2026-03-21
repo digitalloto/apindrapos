@@ -110,6 +110,43 @@ function setupControls() {
       body: JSON.stringify({ mode: e.target.value })
     });
   });
+
+  // Flight recorder controls
+  document.getElementById('btn-record-start').addEventListener('click', () => {
+    fetch('/api/recorder/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: document.getElementById('platform-select').value })
+    }).then(() => {
+      document.getElementById('rec-status').textContent = 'REC';
+      document.getElementById('rec-status').className = 'edge-on';
+    });
+  });
+
+  document.getElementById('btn-record-stop').addEventListener('click', () => {
+    fetch('/api/recorder/stop', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('rec-status').textContent = 'OFF';
+        document.getElementById('rec-status').className = 'edge-off';
+        // Update learning display
+        if (data.lessons && data.lessons.knowledge) {
+          updateLearningDisplay(data.lessons.knowledge);
+        }
+      });
+  });
+
+  // Load learning data on startup
+  fetch('/api/learning/knowledge')
+    .then(r => r.json())
+    .then(data => updateLearningDisplay(data));
+}
+
+function updateLearningDisplay(knowledge) {
+  document.getElementById('learn-flights').textContent = knowledge.totalFlightSessions || 0;
+  document.getElementById('learn-hours').textContent = knowledge.totalFlightHours || 0;
+  document.getElementById('learn-layers').textContent = knowledge.layersLearned || 0;
+  document.getElementById('learn-platforms').textContent = knowledge.platformsLearned || 0;
 }
 
 function toggleLayer(layerId) {
@@ -222,6 +259,24 @@ function updateDashboard(data, layers) {
     document.getElementById('nav-spread').textContent =
       (nav.avgSpread || 0).toFixed(1) + ' m';
     document.getElementById('nav-cycles').textContent = nav.cycle || 0;
+  }
+
+  // Recorder summary — poll every 10 cycles
+  if (data.fusionCycle && data.fusionCycle % 10 === 0) {
+    fetch('/api/recorder/summary')
+      .then(r => r.json())
+      .then(sum => {
+        if (sum.recording) {
+          document.getElementById('rec-status').textContent = 'REC';
+          document.getElementById('rec-status').className = 'edge-on';
+        }
+        document.getElementById('rec-cycles').textContent = sum.totalCycles || 0;
+        document.getElementById('rec-error').textContent =
+          (sum.avgFusionError || 0).toFixed(1) + ' m';
+        document.getElementById('rec-confidence').textContent =
+          (sum.avgConfidence || 0) + '%';
+      })
+      .catch(() => {});
   }
 }
 

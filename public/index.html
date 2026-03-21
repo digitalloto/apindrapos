@@ -223,6 +223,57 @@
         </div>
       </div>
     </section>
+
+    <!-- FLIGHT RECORDER + LEARNING ROW -->
+    <section class="top-row">
+      <div class="card">
+        <h2>FLIGHT RECORDER — Black Box</h2>
+        <div class="button-row" style="margin-bottom:10px">
+          <button id="btn-record-start" class="btn btn-start">RECORD</button>
+          <button id="btn-record-stop" class="btn btn-stop">STOP + LEARN</button>
+        </div>
+        <div class="edge-stats">
+          <div class="edge-stat">
+            <label>Recording</label>
+            <span id="rec-status" class="edge-off">OFF</span>
+          </div>
+          <div class="edge-stat">
+            <label>Cycles</label>
+            <span id="rec-cycles">0</span>
+          </div>
+          <div class="edge-stat">
+            <label>Avg Error</label>
+            <span id="rec-error">— m</span>
+          </div>
+          <div class="edge-stat">
+            <label>Avg Confidence</label>
+            <span id="rec-confidence">—%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>LEARNING ENGINE — Gets Smarter Every Flight</h2>
+        <div class="edge-stats">
+          <div class="edge-stat">
+            <label>Flights Learned</label>
+            <span id="learn-flights">0</span>
+          </div>
+          <div class="edge-stat">
+            <label>Total Hours</label>
+            <span id="learn-hours">0</span>
+          </div>
+          <div class="edge-stat">
+            <label>Layers Learned</label>
+            <span id="learn-layers">0</span>
+          </div>
+          <div class="edge-stat">
+            <label>Platforms</label>
+            <span id="learn-platforms">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- FOOTER -->

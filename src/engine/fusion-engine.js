@@ -21,6 +21,7 @@ const SwarmFusionEngine = require('./swarm-fusion');
 const SensorInterface = require('../sensors/sensor-interface');
 const EdgeProcessor = require('../edge/edge-processor');
 const OnboardNavigator = require('../edge/onboard-navigator');
+const { FlightRecorder, LearningEngine } = require('../learning');
 
 class FusionEngine {
   constructor(platformProfile) {
@@ -31,6 +32,8 @@ class FusionEngine {
     this.swarmEngine = new SwarmFusionEngine();
     this.edgeProcessor = new EdgeProcessor();
     this.onboardNav = new OnboardNavigator();
+    this.flightRecorder = new FlightRecorder();
+    this.learningEngine = new LearningEngine();
     this.edgeEnabled = true;    // edge processing on by default
     this.fusionMode = 'swarm';  // 'swarm' (MiroFish) or 'weighted' (simple average)
     this.activeLayers = [];
@@ -136,6 +139,16 @@ class FusionEngine {
           };
         }
       }
+    }
+
+    // ─── FLIGHT RECORDER: Log this cycle ───
+    if (this.flightRecorder.recording) {
+      this.flightRecorder.recordCycle(
+        result,
+        this.getLayerStatuses(),
+        result.edgeMetrics,
+        result.onboardNav
+      );
     }
 
     // Store history for drift learning

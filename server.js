@@ -224,6 +224,62 @@ app.post('/api/onboard/reset', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// FLIGHT RECORDER + LEARNING ENGINE
+// ═══════════════════════════════════════════
+
+// Start recording
+app.post('/api/recorder/start', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  const result = simulator.engine.flightRecorder.startSession(
+    req.body.platform || process.env.DEFAULT_PLATFORM || 'fighter'
+  );
+  res.json(result);
+});
+
+// Stop recording + trigger learning
+app.post('/api/recorder/stop', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  const summary = simulator.engine.flightRecorder.stopSession();
+  // Feed the flight data to the learning engine
+  let lessons = null;
+  if (summary) {
+    lessons = simulator.engine.learningEngine.learnFromSession(summary);
+  }
+  res.json({ summary, lessons });
+});
+
+// Get current recording summary
+app.get('/api/recorder/summary', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  res.json(simulator.engine.flightRecorder.getSummary());
+});
+
+// List all past sessions
+app.get('/api/recorder/sessions', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  res.json(simulator.engine.flightRecorder.listSessions());
+});
+
+// Get knowledge summary
+app.get('/api/learning/knowledge', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  res.json(simulator.engine.learningEngine.getKnowledgeSummary());
+});
+
+// Get learned weight adjustments
+app.get('/api/learning/weights', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  res.json(simulator.engine.learningEngine.getWeightAdjustments());
+});
+
+// Apply learned knowledge to engine
+app.post('/api/learning/apply', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  const result = simulator.engine.learningEngine.applyToEngine(simulator.engine);
+  res.json(result);
+});
+
+// ═══════════════════════════════════════════
 // WEBSOCKET — Real-time fusion data to dashboard
 // ═══════════════════════════════════════════
 

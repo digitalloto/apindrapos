@@ -400,6 +400,106 @@ test('Onboard Navigator runs inside full fusion engine', () => {
   assert(lastResult.onboardNav !== undefined, 'Result should include onboard nav data');
 });
 
+// ─── TEST 11: Flight Recorder + Learning Engine ───
+console.log('\n11. Flight Recorder + Learning Engine');
+
+const FlightRecorder = require('../src/learning/flight-recorder');
+const LearningEngineMod = require('../src/learning/learning-engine');
+
+test('Flight recorder starts and records cycles', () => {
+  const recorder = new FlightRecorder('/tmp/upie-test-data');
+  const session = recorder.startSession('fighter');
+  assert(session.started === true, 'Should start recording');
+  assert(session.sessionId, 'Should have session ID');
+
+  // Record a fake cycle
+  recorder.recordCycle(
+    { lat: 13.0827, lon: 80.2707, alt: 5000, confidence: { score: 85 },
+      fusionMode: 'swarm', activeLayerCount: 10, validLayerCount: 8,
+      removedLayers: [], spoofAlerts: [], errorMetres: 3.2,
+      motionState: { velocityMps: 250, headingDeg: 45, accelerationMps2: 0 } },
+    [{ id: 1, name: 'GPS', active: true }, { id: 2, name: 'NAVIC', active: true }],
+    null, null
+  );
+
+  const summary = recorder.getSummary();
+  assert(summary.totalCycles === 1, 'Should have 1 cycle');
+  assert(summary.recording === true, 'Should be recording');
+});
+
+test('Flight recorder stops and returns summary', () => {
+  const recorder = new FlightRecorder('/tmp/upie-test-data');
+  recorder.startSession('fighter');
+  // Record 5 cycles
+  for (let i = 0; i < 5; i++) {
+    recorder.recordCycle(
+      { lat: 13.0827, lon: 80.2707, alt: 5000, confidence: { score: 80 + i },
+        fusionMode: 'swarm', activeLayerCount: 10, validLayerCount: 8,
+        removedLayers: [], spoofAlerts: [], errorMetres: 5 - i * 0.5,
+        motionState: { velocityMps: 250 } },
+      [{ id: 1, name: 'GPS', active: true }], null, null
+    );
+  }
+  const summary = recorder.stopSession();
+  assert(summary.totalCycles === 5, 'Should have 5 cycles');
+  assert(summary.avgFusionError > 0, 'Should have avg error');
+  assert(summary.avgConfidence > 0, 'Should have avg confidence');
+});
+
+test('Learning engine learns from flight session', () => {
+  const learner = new LearningEngineMod('/tmp/upie-test-data');
+  learner.resetKnowledge();
+
+  const fakeSummary = {
+    sessionId: 'test-1',
+    platform: 'fighter',
+    totalCycles: 100,
+    totalSeconds: 100,
+    avgFusionError: 5.2,
+    avgConfidence: 82,
+    layerPerformance: {
+      1: { name: 'GPS', activeCycles: 95, noiseCount: 2, jammedCount: 0, spoofedCount: 0 },
+      2: { name: 'NAVIC', activeCycles: 100, noiseCount: 0, jammedCount: 0, spoofedCount: 0 },
+      3: { name: 'INS', activeCycles: 100, noiseCount: 15, jammedCount: 0, spoofedCount: 0 }
+    }
+  };
+
+  const result = learner.learnFromSession(fakeSummary);
+  assert(result.lessons.length > 0, 'Should return lessons');
+
+  const knowledge = learner.getKnowledgeSummary();
+  assert(knowledge.totalFlightSessions === 1, 'Should have 1 session');
+  assert(knowledge.layersLearned === 3, 'Should have learned 3 layers');
+
+  // Check that NAVIC (0 noise) has higher reliability than INS (15 noise)
+  const weights = learner.getWeightAdjustments();
+  assert(weights[2].reliability > weights[3].reliability,
+    'NAVIC should be more reliable than INS');
+});
+
+test('Fusion engine records and learns automatically', () => {
+  const engine = new FusionEngine(getProfile('fighter'));
+  engine.fusionMode = 'swarm';
+  engine.edgeEnabled = true;
+
+  // Start recording
+  engine.flightRecorder.startSession('fighter');
+
+  // Run 10 fusion cycles
+  const truePos = { lat: 13.0827, lon: 80.2707, alt: 5000 };
+  for (let i = 0; i < 10; i++) {
+    engine.fuse(truePos);
+  }
+
+  // Stop and learn
+  const summary = engine.flightRecorder.stopSession();
+  assert(summary.totalCycles === 10, 'Should have recorded 10 cycles');
+
+  const lessons = engine.learningEngine.learnFromSession(summary);
+  assert(lessons !== null, 'Should produce lessons');
+  assert(lessons.knowledge.totalFlightSessions >= 1, 'Should have sessions');
+});
+
 // ─── RESULTS ───
 console.log('\n═══════════════════════════════════════');
 console.log(`RESULTS: ${passed} passed, ${failed} failed, ${passed + failed} total`);
