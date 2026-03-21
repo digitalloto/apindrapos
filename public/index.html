@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPIE — Universal Positioning Intelligence Engine</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <h1>UPIE</h1>
+      <span class="subtitle">Universal Positioning Intelligence Engine</span>
+    </div>
+    <div class="header-right">
+      <span class="patent">PATENT PENDING — AIMCRS</span>
+      <span class="hitl">HUMAN IN THE LOOP</span>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD -->
+  <main>
+    <!-- TOP ROW: Fused Position + Confidence -->
+    <section class="top-row">
+      <!-- Fused Position Card -->
+      <div class="card position-card">
+        <h2>FUSED POSITION</h2>
+        <div class="position-display">
+          <div class="coord">
+            <label>LATITUDE</label>
+            <span id="fused-lat">—</span>
+          </div>
+          <div class="coord">
+            <label>LONGITUDE</label>
+            <span id="fused-lon">—</span>
+          </div>
+          <div class="coord">
+            <label>ALTITUDE</label>
+            <span id="fused-alt">— m</span>
+          </div>
+        </div>
+        <div class="position-meta">
+          <span>Error: <strong id="error-metres">—</strong> m</span>
+          <span>Cycle: <strong id="fusion-cycle">0</strong></span>
+          <span>Active: <strong id="active-layers">0</strong>/12</span>
+          <span>Valid: <strong id="valid-layers">0</strong></span>
+        </div>
+      </div>
+
+      <!-- Confidence Gauge Card -->
+      <div class="card confidence-card">
+        <h2>CONFIDENCE SCORE</h2>
+        <div class="gauge-container">
+          <div class="gauge">
+            <div class="gauge-fill" id="gauge-fill"></div>
+            <div class="gauge-text" id="gauge-text">—%</div>
+          </div>
+        </div>
+        <div id="confidence-level" class="confidence-level">—</div>
+        <div id="confidence-message" class="confidence-message">Waiting for data...</div>
+      </div>
+    </section>
+
+    <!-- MIDDLE ROW: Layer Status Grid -->
+    <section class="card layers-section">
+      <h2>12 POSITIONING LAYERS — Live Status</h2>
+      <div class="layers-grid" id="layers-grid">
+        <!-- Populated by JavaScript -->
+      </div>
+    </section>
+
+    <!-- BOTTOM ROW: Controls + Alerts -->
+    <section class="bottom-row">
+      <!-- Controls -->
+      <div class="card controls-card">
+        <h2>SIMULATION CONTROLS</h2>
+
+        <div class="control-group">
+          <label>Platform:</label>
+          <select id="platform-select">
+            <option value="small-drone">Small Drone</option>
+            <option value="medium-drone">Medium Drone / UAV</option>
+            <option value="fighter" selected>Fighter Aircraft</option>
+            <option value="missile">Cruise Missile</option>
+            <option value="submarine">Submarine</option>
+            <option value="ground-vehicle">Ground Vehicle</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Scenario:</label>
+          <select id="scenario-select">
+            <option value="normal">Normal Flight</option>
+            <option value="gps-jamming">GPS Jamming</option>
+            <option value="gps-spoofing">GPS Spoofing</option>
+            <option value="multi-failure">Multiple Failures</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div class="button-row">
+          <button id="btn-start" class="btn btn-start">START</button>
+          <button id="btn-stop" class="btn btn-stop">STOP</button>
+          <button id="btn-tick" class="btn btn-tick">SINGLE TICK</button>
+        </div>
+
+        <div class="sim-status">
+          Status: <strong id="sim-status">STOPPED</strong>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="card alerts-card">
+        <h2>ALERTS — Spoofing / Jamming Detection</h2>
+        <div id="alerts-list" class="alerts-list">
+          <div class="alert-empty">No alerts — all systems nominal</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    UPIE — Patent Pending — AIMCRS — Abheet Prem Manghnani — Chennai, India
+    — HUMAN IN THE LOOP — AI assists, human decides, always.
+  </footer>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
