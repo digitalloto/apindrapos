@@ -20,6 +20,7 @@ const SpoofDetector = require('./spoof-detector');
 const SwarmFusionEngine = require('./swarm-fusion');
 const SensorInterface = require('../sensors/sensor-interface');
 const EdgeProcessor = require('../edge/edge-processor');
+const OnboardNavigator = require('../edge/onboard-navigator');
 
 class FusionEngine {
   constructor(platformProfile) {
@@ -29,6 +30,7 @@ class FusionEngine {
     this.sensorInterface = new SensorInterface();
     this.swarmEngine = new SwarmFusionEngine();
     this.edgeProcessor = new EdgeProcessor();
+    this.onboardNav = new OnboardNavigator();
     this.edgeEnabled = true;    // edge processing on by default
     this.fusionMode = 'swarm';  // 'swarm' (MiroFish) or 'weighted' (simple average)
     this.activeLayers = [];
@@ -112,6 +114,26 @@ class FusionEngine {
             action: 'HUMAN REVIEW — position inconsistent with predicted track',
             timestamp: Date.now()
           });
+        }
+      }
+
+      // ─── ONBOARD NAVIGATOR: Independent path tracking + cross-check ───
+      // Auto-lock origin on first fused position if not already locked
+      if (!this.onboardNav.originLocked && result.lat !== null) {
+        this.onboardNav.lockOrigin(result.lat, result.lon, result.alt);
+      }
+      // Feed all readings into independent path trackers
+      if (this.onboardNav.originLocked) {
+        const navResult = this.onboardNav.feedReadings(readings);
+        if (navResult) {
+          result.onboardNav = {
+            consensus: navResult.consensus,
+            confidence: navResult.confidence,
+            activeTrackers: navResult.activeCount,
+            noiseTrackers: navResult.noiseCount,
+            avgSpread: navResult.avgSpread,
+            cycle: navResult.cycle
+          };
         }
       }
     }

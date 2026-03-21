@@ -206,6 +206,23 @@ function updateDashboard(data, layers) {
       manEl.style.color = '#2ecc71';
     }
   }
+
+  // Onboard Navigator
+  if (data.onboardNav) {
+    const nav = data.onboardNav;
+    document.getElementById('nav-origin').textContent = 'LOCKED';
+    document.getElementById('nav-origin').className = 'edge-on';
+    document.getElementById('nav-lat').textContent =
+      nav.consensus && nav.consensus.lat ? nav.consensus.lat.toFixed(6) : '—';
+    document.getElementById('nav-lon').textContent =
+      nav.consensus && nav.consensus.lon ? nav.consensus.lon.toFixed(6) : '—';
+    document.getElementById('nav-confidence').textContent = (nav.confidence || 0) + '%';
+    document.getElementById('nav-trackers').textContent = nav.activeTrackers || 0;
+    document.getElementById('nav-noise').textContent = nav.noiseTrackers || 0;
+    document.getElementById('nav-spread').textContent =
+      (nav.avgSpread || 0).toFixed(1) + ' m';
+    document.getElementById('nav-cycles').textContent = nav.cycle || 0;
+  }
 }
 
 function updateGauge(confidence) {

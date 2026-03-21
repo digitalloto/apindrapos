@@ -321,6 +321,85 @@ test('Edge sync buffers data when disconnected', () => {
   assert(reconnect.bufferedPackets === 1, 'Should flush 1 packet on reconnect');
 });
 
+// ─── TEST 10: Onboard Navigator ───
+console.log('\n10. Onboard Navigator (Start Point + Independent Tracking)');
+
+const OnboardNavigator = require('../src/edge/onboard-navigator');
+const PathTracker = require('../src/edge/path-tracker');
+
+test('Origin lock sets starting coordinates', () => {
+  const nav = new OnboardNavigator();
+  const result = nav.lockOrigin(13.0827, 80.2707, 100);
+  assert(result.locked === true, 'Should lock origin');
+  assert(nav.origin.lat === 13.0827, 'Origin lat should match');
+  assert(nav.originLocked === true, 'Should be marked as locked');
+});
+
+test('PathTracker independently tracks position from origin', () => {
+  const tracker = new PathTracker(1, 'GPS', { baseAccuracy: 5 });
+  tracker.setOrigin(13.0000, 80.0000, 100);
+  // First reading sets the initial position
+  tracker.updateFromAbsolutePosition(13.0000, 80.0000, 100, 1000000);
+  // Second reading — moved northeast after 1 second
+  tracker.updateFromAbsolutePosition(13.0001, 80.0001, 100, 1001000);
+  const state = tracker.getState();
+  assert(state.totalDistanceMetres > 0, 'Should have moved some distance');
+  assert(state.readingCount === 2, 'Should count readings');
+});
+
+test('Cross-check finds consensus from multiple trackers', () => {
+  const nav = new OnboardNavigator();
+  nav.lockOrigin(13.0000, 80.0000, 100);
+
+  // Simulate readings from 5 layers — 4 agree, 1 is noisy
+  const readings = [
+    { layerId: 1, layerName: 'GPS', lat: 13.0001, lon: 80.0001, alt: 100, accuracyMetres: 5 },
+    { layerId: 2, layerName: 'NAVIC', lat: 13.00011, lon: 80.00011, alt: 100, accuracyMetres: 2 },
+    { layerId: 5, layerName: 'Terrain', lat: 13.00009, lon: 80.00009, alt: 100, accuracyMetres: 5 },
+    { layerId: 15, layerName: 'Galileo', lat: 13.00012, lon: 80.00012, alt: 100, accuracyMetres: 3 },
+    { layerId: 3, layerName: 'INS', lat: 13.005, lon: 80.005, alt: 100, accuracyMetres: 500 }
+  ];
+
+  const result = nav.feedReadings(readings);
+  assert(result !== null, 'Should return cross-check result');
+  assert(result.consensus.lat !== null, 'Should have consensus lat');
+  assert(result.activeCount >= 4, 'Should have active trackers');
+});
+
+test('Drift correction nudges drifting trackers toward consensus', () => {
+  const nav = new OnboardNavigator();
+  nav.lockOrigin(13.0000, 80.0000, 100);
+
+  // Run multiple cycles to accumulate drift
+  for (let i = 0; i < 10; i++) {
+    const readings = [
+      { layerId: 1, layerName: 'GPS', lat: 13.0001, lon: 80.0001, alt: 100, accuracyMetres: 5 },
+      { layerId: 2, layerName: 'NAVIC', lat: 13.00011, lon: 80.00011, alt: 100, accuracyMetres: 2 },
+      { layerId: 3, layerName: 'INS', lat: 13.005, lon: 80.005, alt: 100, accuracyMetres: 500 }
+    ];
+    nav.feedReadings(readings);
+  }
+
+  const state = nav.getState();
+  assert(state.stats.totalDriftCorrected > 0, 'Should have corrected some drift');
+  assert(state.stats.totalCrossChecks === 10, 'Should have 10 cross-checks');
+});
+
+test('Onboard Navigator runs inside full fusion engine', () => {
+  const engine = new FusionEngine(getProfile('fighter'));
+  engine.edgeEnabled = true;
+  engine.fusionMode = 'swarm';
+  const truePos = { lat: 13.0827, lon: 80.2707, alt: 5000 };
+  // Run 5 cycles
+  let lastResult;
+  for (let i = 0; i < 5; i++) {
+    lastResult = engine.fuse(truePos);
+  }
+  assert(engine.onboardNav.originLocked === true, 'Origin should auto-lock');
+  assert(engine.onboardNav.cycleCount >= 4, 'Should have run cycles');
+  assert(lastResult.onboardNav !== undefined, 'Result should include onboard nav data');
+});
+
 // ─── RESULTS ───
 console.log('\n═══════════════════════════════════════');
 console.log(`RESULTS: ${passed} passed, ${failed} failed, ${passed + failed} total`);

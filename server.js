@@ -185,6 +185,45 @@ app.get('/api/edge/metrics', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// ONBOARD NAVIGATOR — Independent path tracking
+// ═══════════════════════════════════════════
+
+// Lock origin coordinates (starting point)
+app.post('/api/onboard/lock-origin', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  const { lat, lon, alt } = req.body;
+  const result = simulator.engine.onboardNav.lockOrigin(lat, lon, alt || 0);
+  res.json(result);
+});
+
+// Get onboard navigator state
+app.get('/api/onboard/state', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.onboardNav.getState());
+});
+
+// Get consensus position
+app.get('/api/onboard/position', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.onboardNav.getPosition());
+});
+
+// Reset onboard navigator
+app.post('/api/onboard/reset', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  simulator.engine.onboardNav.reset();
+  res.json({ success: true, message: 'Onboard navigator reset' });
+});
+
+// ═══════════════════════════════════════════
 // WEBSOCKET — Real-time fusion data to dashboard
 // ═══════════════════════════════════════════
 
