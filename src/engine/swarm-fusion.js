@@ -283,35 +283,41 @@ class SwarmFusionEngine {
     return totalWeight > 0 ? weightedAlt / totalWeight : 0;
   }
 
-  // Swarm-based confidence scoring
+  // Swarm-based confidence scoring — continuous scoring for higher resolution
   calculateSwarmConfidence(schoolFish, outerFish, allFish) {
     const total = allFish.length;
     if (total === 0) return { score: 0, level: 'CRITICAL', message: 'No fish in swarm' };
 
-    // Factor 1: School size ratio (0-35 points)
+    // Factor 1: School size ratio (0-35 points) — continuous
     const schoolRatio = schoolFish.length / total;
     let schoolScore = Math.round(schoolRatio * 35);
 
-    // Factor 2: School tightness — how close fish are (0-30 points)
-    let tightnessScore = 0;
-    if (this.schoolRadius < 5) tightnessScore = 30;
-    else if (this.schoolRadius < 20) tightnessScore = 25;
-    else if (this.schoolRadius < 50) tightnessScore = 20;
-    else if (this.schoolRadius < 200) tightnessScore = 15;
-    else if (this.schoolRadius < 500) tightnessScore = 10;
-    else tightnessScore = 5;
+    // Factor 2: School tightness — CONTINUOUS scoring instead of stepped brackets (0-30 points)
+    // Uses exponential decay: tighter school = exponentially higher score
+    // 0m = 30pts, 5m = 28pts, 20m = 24pts, 50m = 18pts, 200m = 8pts, 500m+ = 3pts
+    let tightnessScore;
+    if (this.schoolRadius <= 0.5) {
+      tightnessScore = 30;
+    } else {
+      tightnessScore = Math.max(3, Math.round(30 * Math.exp(-this.schoolRadius / 80)));
+    }
 
     // Factor 3: Fish diversity — different types of layers (0-20 points)
+    // Added signal and vision categories for more diversity points
     const layerIds = schoolFish.map(f => f.layerId);
-    const hasSatellite = layerIds.some(id => [1, 2, 14, 15, 16].includes(id));
-    const hasCelestial = layerIds.some(id => [4, 13, 23].includes(id));
-    const hasGround = layerIds.some(id => [5, 6, 7, 8, 9, 17, 18, 20, 21].includes(id));
-    const hasInternal = layerIds.some(id => [3, 12, 22, 24].includes(id));
+    const hasSatellite = layerIds.some(id => [1, 2, 14, 15, 16, 25, 26, 27, 28, 35].includes(id));
+    const hasCelestial = layerIds.some(id => [4, 13, 23, 46].includes(id));
+    const hasGround = layerIds.some(id => [5, 6, 7, 10, 17, 39, 41].includes(id));
+    const hasInternal = layerIds.some(id => [3, 11, 12, 19, 44, 45].includes(id));
+    const hasSignal = layerIds.some(id => [8, 9, 18, 21, 29, 30, 33, 34, 37, 38, 47, 48].includes(id));
+    const hasVision = layerIds.some(id => [20, 31, 32, 40, 42, 43].includes(id));
     let diversityScore = 0;
-    if (hasSatellite) diversityScore += 5;
-    if (hasCelestial) diversityScore += 5;
-    if (hasGround) diversityScore += 5;
-    if (hasInternal) diversityScore += 5;
+    if (hasSatellite) diversityScore += 4;
+    if (hasCelestial) diversityScore += 4;
+    if (hasGround) diversityScore += 3;
+    if (hasInternal) diversityScore += 3;
+    if (hasSignal) diversityScore += 3;
+    if (hasVision) diversityScore += 3;
 
     // Factor 4: No outliers is good (0-15 points)
     let outlierScore = 15;
@@ -324,13 +330,16 @@ class SwarmFusionEngine {
     let level, message;
     if (totalScore >= 95) {
       level = 'MAXIMUM';
-      message = 'Swarm consensus is tight — maximum trust';
-    } else if (totalScore >= 80) {
+      message = 'Swarm consensus is tight — maximum trust — warfare ready';
+    } else if (totalScore >= 85) {
       level = 'HIGH';
-      message = 'Strong school agreement — act with confidence';
-    } else if (totalScore >= 60) {
+      message = 'Strong school agreement — precision strike capable';
+    } else if (totalScore >= 70) {
+      level = 'GOOD';
+      message = 'Good school formation — suitable for navigation and troop movement';
+    } else if (totalScore >= 55) {
       level = 'MODERATE';
-      message = 'School forming but some fish distant — verify';
+      message = 'School forming but some fish distant — verify before acting';
     } else if (totalScore >= 40) {
       level = 'LOW';
       message = 'School scattered — possible interference — seek confirmation';

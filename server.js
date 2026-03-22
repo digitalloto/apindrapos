@@ -201,6 +201,68 @@ app.get('/api/fusion-mode', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// PRECISION MODE — Tighter parameters for warfare-grade accuracy
+// ═══════════════════════════════════════════
+
+app.post('/api/precision-mode', (req, res) => {
+  const { mode } = req.body;  // 'standard', 'high', 'warfare', 'maximum'
+  const validModes = ['standard', 'high', 'warfare', 'maximum'];
+  if (!validModes.includes(mode)) {
+    return res.status(400).json({ error: 'Mode must be: standard, high, warfare, or maximum' });
+  }
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+
+  const swarm = simulator.engine.swarmEngine;
+  const presets = {
+    standard: {
+      swarmIterations: 5,
+      cohesionStrength: 0.3,
+      alignmentStrength: 0.1,
+      outlierThreshold: 3.0,
+      description: 'Standard navigation — 10-50m accuracy'
+    },
+    high: {
+      swarmIterations: 10,
+      cohesionStrength: 0.5,
+      alignmentStrength: 0.2,
+      outlierThreshold: 2.5,
+      description: 'High precision — 5-10m accuracy for troop movement'
+    },
+    warfare: {
+      swarmIterations: 20,
+      cohesionStrength: 0.7,
+      alignmentStrength: 0.3,
+      outlierThreshold: 2.0,
+      description: 'Warfare precision — sub-5m accuracy for precision strike'
+    },
+    maximum: {
+      swarmIterations: 50,
+      cohesionStrength: 0.85,
+      alignmentStrength: 0.4,
+      outlierThreshold: 1.5,
+      description: 'Maximum precision — sub-1m accuracy for missile guidance'
+    }
+  };
+
+  const preset = presets[mode];
+  swarm.swarmIterations = preset.swarmIterations;
+  swarm.cohesionStrength = preset.cohesionStrength;
+  swarm.alignmentStrength = preset.alignmentStrength;
+  swarm.outlierThreshold = preset.outlierThreshold;
+  simulator.engine.precisionMode = mode;
+
+  res.json({ success: true, mode, ...preset });
+});
+
+app.get('/api/precision-mode', (req, res) => {
+  res.json({
+    precisionMode: simulator.engine ? (simulator.engine.precisionMode || 'standard') : 'standard'
+  });
+});
+
+// ═══════════════════════════════════════════
 // SENSOR INTERFACE — Feed real sensor data
 // ═══════════════════════════════════════════
 

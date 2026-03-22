@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildDemoGrid();
   setupControls();
   setupAutoNavControls();
+  setupDeviceGps();
   initMap();
   connectWebSocket();
 });
@@ -248,6 +249,14 @@ function setupControls() {
 
   document.getElementById('fusion-mode-select').addEventListener('change', (e) => {
     fetch('/api/fusion-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: e.target.value })
+    });
+  });
+
+  document.getElementById('precision-mode-select').addEventListener('change', (e) => {
+    fetch('/api/precision-mode', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: e.target.value })
@@ -761,6 +770,184 @@ function addAutoNavLog(result) {
     `<span class="log-step">${result.message}</span>`;
   log.insertBefore(entry, log.firstChild);
   while (log.children.length > 15) log.removeChild(log.lastChild);
+}
+
+// ═══════════════════════════════════════════
+// DEVICE GPS — Real phone/browser GPS tracking
+// ═══════════════════════════════════════════
+let deviceGpsWatchId = null;
+let deviceGpsUpdateCount = 0;
+let deviceGpsFeedingToEngine = false;
+let deviceGpsMarker = null;
+
+function setupDeviceGps() {
+  const startBtn = document.getElementById('btn-gps-start');
+  const stopBtn = document.getElementById('btn-gps-stop');
+  const feedBtn = document.getElementById('btn-gps-feed');
+  const unfeedBtn = document.getElementById('btn-gps-unfeed');
+
+  if (startBtn) startBtn.addEventListener('click', startDeviceGps);
+  if (stopBtn) stopBtn.addEventListener('click', stopDeviceGps);
+  if (feedBtn) feedBtn.addEventListener('click', startFeedingGps);
+  if (unfeedBtn) unfeedBtn.addEventListener('click', stopFeedingGps);
+}
+
+function startDeviceGps() {
+  if (!navigator.geolocation) {
+    addDeviceGpsLog('Geolocation not supported by this browser/device');
+    return;
+  }
+
+  document.getElementById('device-gps-status').textContent = 'ACQUIRING';
+  document.getElementById('device-gps-status').className = 'edge-on';
+  addDeviceGpsLog('Requesting device GPS position...');
+
+  deviceGpsWatchId = navigator.geolocation.watchPosition(
+    onDeviceGpsSuccess,
+    onDeviceGpsError,
+    {
+      enableHighAccuracy: true,
+      maximumAge: 1000,
+      timeout: 10000
+    }
+  );
+}
+
+function stopDeviceGps() {
+  if (deviceGpsWatchId !== null) {
+    navigator.geolocation.clearWatch(deviceGpsWatchId);
+    deviceGpsWatchId = null;
+  }
+  stopFeedingGps();
+  document.getElementById('device-gps-status').textContent = 'OFF';
+  document.getElementById('device-gps-status').className = 'edge-off';
+  addDeviceGpsLog('Device GPS tracking stopped');
+
+  // Remove device marker from map
+  if (deviceGpsMarker && mapInstance) {
+    mapInstance.removeLayer(deviceGpsMarker);
+    deviceGpsMarker = null;
+  }
+}
+
+function onDeviceGpsSuccess(position) {
+  const coords = position.coords;
+  deviceGpsUpdateCount++;
+
+  document.getElementById('device-gps-status').textContent = 'TRACKING';
+  document.getElementById('device-gps-status').className = 'edge-on';
+  document.getElementById('device-gps-lat').textContent = coords.latitude.toFixed(6);
+  document.getElementById('device-gps-lon').textContent = coords.longitude.toFixed(6);
+  document.getElementById('device-gps-accuracy').textContent = coords.accuracy.toFixed(1) + ' m';
+  document.getElementById('device-gps-alt').textContent =
+    coords.altitude !== null ? coords.altitude.toFixed(1) + ' m' : '— m';
+  document.getElementById('device-gps-speed').textContent =
+    coords.speed !== null ? coords.speed.toFixed(1) + ' m/s' : '— m/s';
+  document.getElementById('device-gps-updates').textContent = deviceGpsUpdateCount;
+
+  // Show device position on map
+  if (mapInstance) {
+    if (!deviceGpsMarker) {
+      deviceGpsMarker = L.circleMarker([coords.latitude, coords.longitude], {
+        radius: 8,
+        color: '#00ff00',
+        fillColor: '#00ff00',
+        fillOpacity: 0.9,
+        weight: 3
+      }).addTo(mapInstance);
+      deviceGpsMarker.bindTooltip('DEVICE GPS (Real)', { permanent: false, direction: 'top' });
+    }
+    deviceGpsMarker.setLatLng([coords.latitude, coords.longitude]);
+    deviceGpsMarker.setTooltipContent(
+      `DEVICE GPS: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}<br>Accuracy: ${coords.accuracy.toFixed(1)}m`
+    );
+  }
+
+  // Feed to fusion engine if enabled
+  if (deviceGpsFeedingToEngine) {
+    feedGpsToEngine(coords);
+  }
+
+  if (deviceGpsUpdateCount === 1) {
+    addDeviceGpsLog(`First fix: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (accuracy: ${coords.accuracy.toFixed(1)}m)`);
+    // Center map on device position
+    if (mapInstance) {
+      mapInstance.setView([coords.latitude, coords.longitude], 16);
+    }
+  }
+}
+
+function onDeviceGpsError(error) {
+  let msg = 'Unknown error';
+  switch (error.code) {
+    case 1: msg = 'Permission denied — enable location access'; break;
+    case 2: msg = 'Position unavailable — GPS signal lost'; break;
+    case 3: msg = 'Timeout — device GPS took too long'; break;
+  }
+  document.getElementById('device-gps-status').textContent = 'ERROR';
+  document.getElementById('device-gps-status').className = 'edge-off';
+  addDeviceGpsLog('GPS Error: ' + msg);
+}
+
+function startFeedingGps() {
+  deviceGpsFeedingToEngine = true;
+  document.getElementById('device-gps-fed').textContent = 'YES';
+  document.getElementById('device-gps-fed').className = 'edge-on';
+  document.getElementById('btn-gps-feed').style.display = 'none';
+  document.getElementById('btn-gps-unfeed').style.display = 'inline-block';
+
+  // Register as real sensor for GPS layer (id=1)
+  fetch('/api/sensor/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ layerId: 1, sensorName: 'Device GPS (Browser)' })
+  });
+
+  addDeviceGpsLog('Now feeding real GPS data to fusion engine as Layer 1 (GPS/GNSS)');
+}
+
+function stopFeedingGps() {
+  deviceGpsFeedingToEngine = false;
+  document.getElementById('device-gps-fed').textContent = 'NO';
+  document.getElementById('device-gps-fed').className = 'edge-off';
+  document.getElementById('btn-gps-feed').style.display = 'inline-block';
+  document.getElementById('btn-gps-unfeed').style.display = 'none';
+
+  // Disconnect sensor — fall back to simulation
+  fetch('/api/sensor/disconnect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ layerId: 1 })
+  });
+
+  addDeviceGpsLog('Stopped feeding GPS to engine — back to simulation');
+}
+
+function feedGpsToEngine(coords) {
+  fetch('/api/sensor/feed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      layerId: 1,
+      layerName: 'Device GPS (Real)',
+      lat: coords.latitude,
+      lon: coords.longitude,
+      alt: coords.altitude,
+      accuracyMetres: coords.accuracy,
+      timestamp: Date.now()
+    })
+  });
+}
+
+function addDeviceGpsLog(message) {
+  const log = document.getElementById('device-gps-log');
+  if (!log) return;
+  const now = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'demo-log-entry';
+  entry.innerHTML = `<span class="log-time">${now}</span><span class="log-step">${message}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 10) log.removeChild(log.lastChild);
 }
 
 function updateAlerts(alerts) {

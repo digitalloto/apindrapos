@@ -98,6 +98,52 @@
       </div>
     </section>
 
+    <!-- DEVICE GPS TRACKING -->
+    <section class="card" id="device-gps-section">
+      <h2>DEVICE GPS — Track This Device's Real Position</h2>
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <label>GPS Status</label>
+          <span id="device-gps-status" class="edge-off">OFF</span>
+        </div>
+        <div class="edge-stat">
+          <label>Device Lat</label>
+          <span id="device-gps-lat">—</span>
+        </div>
+        <div class="edge-stat">
+          <label>Device Lon</label>
+          <span id="device-gps-lon">—</span>
+        </div>
+        <div class="edge-stat">
+          <label>Accuracy</label>
+          <span id="device-gps-accuracy">— m</span>
+        </div>
+        <div class="edge-stat">
+          <label>Altitude</label>
+          <span id="device-gps-alt">— m</span>
+        </div>
+        <div class="edge-stat">
+          <label>Speed</label>
+          <span id="device-gps-speed">— m/s</span>
+        </div>
+        <div class="edge-stat">
+          <label>Updates</label>
+          <span id="device-gps-updates">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Fed to Engine</label>
+          <span id="device-gps-fed" class="edge-off">NO</span>
+        </div>
+      </div>
+      <div class="button-row" style="margin-top:10px">
+        <button id="btn-gps-start" class="btn btn-start">START TRACKING</button>
+        <button id="btn-gps-stop" class="btn btn-stop">STOP TRACKING</button>
+        <button id="btn-gps-feed" class="btn btn-tick">FEED TO ENGINE (Layer 1)</button>
+        <button id="btn-gps-unfeed" class="btn btn-stop" style="display:none">STOP FEEDING</button>
+      </div>
+      <div id="device-gps-log" class="demo-log" style="margin-top:8px"></div>
+    </section>
+
     <!-- AUTO-BAN + CONTROLS ROW -->
     <section class="bottom-row">
       <!-- Controls -->
@@ -134,6 +180,16 @@
           <select id="fusion-mode-select">
             <option value="swarm" selected>MiroFish Swarm (Recommended)</option>
             <option value="weighted">Weighted Average (Classic)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Precision Mode:</label>
+          <select id="precision-mode-select">
+            <option value="standard">Standard (Navigation)</option>
+            <option value="high">High (Troop Movement)</option>
+            <option value="warfare">Warfare (Precision Strike)</option>
+            <option value="maximum">Maximum (Missile Guidance)</option>
           </select>
         </div>
 
