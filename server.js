@@ -799,6 +799,63 @@ app.post('/api/demo/stop', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// NAVIGATION — Destination + Waypoints (Single Drone)
+// ═══════════════════════════════════════════
+
+// Set single-drone destination
+app.post('/api/navigate', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  const { lat, lon, alt, name } = req.body;
+  if (lat === undefined || lon === undefined) {
+    return res.status(400).json({ error: 'lat and lon are required' });
+  }
+  simulator.navController.lockOrigin(
+    simulator.truePosition.lat,
+    simulator.truePosition.lon,
+    simulator.truePosition.alt
+  );
+  const result = simulator.navController.setDestination(
+    parseFloat(lat), parseFloat(lon), alt ? parseFloat(alt) : undefined, name
+  );
+  res.json({ success: true, navigation: result });
+});
+
+// Set single-drone waypoints
+app.post('/api/navigate/waypoints', (req, res) => {
+  if (!simulator.engine) return res.status(500).json({ error: 'Engine not initialised' });
+  const { waypoints, missionType, speed } = req.body;
+  if (!waypoints || !Array.isArray(waypoints) || waypoints.length === 0) {
+    return res.status(400).json({ error: 'waypoints array required' });
+  }
+  simulator.navController.lockOrigin(
+    simulator.truePosition.lat,
+    simulator.truePosition.lon,
+    simulator.truePosition.alt
+  );
+  if (speed) simulator.navController.setSpeed(parseFloat(speed));
+  const result = simulator.navController.setWaypoints(waypoints, missionType);
+  res.json({ success: true, navigation: result });
+});
+
+// Get navigation status
+app.get('/api/navigate/status', (req, res) => {
+  res.json(simulator.navController.getState());
+});
+
+// Stop navigation
+app.post('/api/navigate/stop', (req, res) => {
+  const result = simulator.navController.stop();
+  res.json({ success: true, navigation: result });
+});
+
+// Set navigation speed
+app.post('/api/navigate/speed', (req, res) => {
+  const { speed } = req.body;
+  simulator.navController.setSpeed(parseFloat(speed) || 50);
+  res.json({ success: true, speed: simulator.navController.speedMps });
+});
+
+// ═══════════════════════════════════════════
 // FLEET — Multi-Drone Swarm System
 // ═══════════════════════════════════════════
 
@@ -944,6 +1001,49 @@ app.get('/api/fleet/hivemind', (req, res) => {
 // Mesh network status
 app.get('/api/fleet/mesh', (req, res) => {
   res.json(fleet.meshNetwork.getStatus());
+});
+
+// ═══════════════════════════════════════════
+// FLEET NAVIGATION — Destination + Waypoints
+// ═══════════════════════════════════════════
+
+// Set fleet destination
+app.post('/api/fleet/navigate', (req, res) => {
+  const { lat, lon, alt, name } = req.body;
+  if (lat === undefined || lon === undefined) {
+    return res.status(400).json({ error: 'lat and lon are required' });
+  }
+  const result = fleet.setDestination(parseFloat(lat), parseFloat(lon), alt ? parseFloat(alt) : undefined, name);
+  res.json({ success: true, navigation: result });
+});
+
+// Set fleet waypoints
+app.post('/api/fleet/waypoints', (req, res) => {
+  const { waypoints, missionType, speed } = req.body;
+  if (!waypoints || !Array.isArray(waypoints) || waypoints.length === 0) {
+    return res.status(400).json({ error: 'waypoints array required' });
+  }
+  if (speed) fleet.setNavigationSpeed(parseFloat(speed));
+  const result = fleet.setWaypoints(waypoints, missionType);
+  res.json({ success: true, navigation: result });
+});
+
+// Get fleet navigation status
+app.get('/api/fleet/navigate/status', (req, res) => {
+  res.json(fleet.getLeaderNavState());
+});
+
+// Stop fleet navigation
+app.post('/api/fleet/navigate/stop', (req, res) => {
+  const result = fleet.stopNavigation();
+  res.json({ success: true, navigation: result });
+});
+
+// Set fleet navigation speed
+app.post('/api/fleet/navigate/speed', (req, res) => {
+  const { speed } = req.body;
+  fleet.setNavigationSpeed(parseFloat(speed) || 50);
+  res.json({ success: true, speed });
 });
 
 // ═══════════════════════════════════════════

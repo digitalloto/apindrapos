@@ -290,6 +290,9 @@ class FleetManager {
     // 5. Reset mesh bandwidth
     this.meshNetwork.resetCycleBandwidth();
 
+    // 6. Get leader navigation state
+    const leaderNav = this.getLeaderNavState();
+
     return {
       cycle: this.cycle,
       droneResults: results,
@@ -297,7 +300,8 @@ class FleetManager {
       formation: this.formationController.getFormationStatus(dronePositions),
       evasion: this.evasionController.getState(),
       mesh: this.meshNetwork.getStatus(),
-      threatLevel: this.swarmIntelligence.threatLevel
+      threatLevel: this.swarmIntelligence.threatLevel,
+      navigation: leaderNav
     };
   }
 
@@ -404,6 +408,69 @@ class FleetManager {
     for (const drone of Object.values(this.drones)) {
       drone.simulator.setScenario(scenario);
     }
+  }
+
+  /**
+   * Set fleet destination — leader navigates, followers maintain formation
+   */
+  setDestination(lat, lon, alt, name) {
+    const leader = this._getLeader();
+    if (!leader) return null;
+    leader.simulator.navController.lockOrigin(
+      leader.simulator.truePosition.lat,
+      leader.simulator.truePosition.lon,
+      leader.simulator.truePosition.alt
+    );
+    return leader.simulator.navController.setDestination(lat, lon, alt, name);
+  }
+
+  /**
+   * Set fleet waypoints — leader follows route, followers maintain formation
+   */
+  setWaypoints(waypointList, missionType) {
+    const leader = this._getLeader();
+    if (!leader) return null;
+    leader.simulator.navController.lockOrigin(
+      leader.simulator.truePosition.lat,
+      leader.simulator.truePosition.lon,
+      leader.simulator.truePosition.alt
+    );
+    return leader.simulator.navController.setWaypoints(waypointList, missionType);
+  }
+
+  /**
+   * Set fleet cruise speed
+   */
+  setNavigationSpeed(speedMps) {
+    const leader = this._getLeader();
+    if (!leader) return;
+    leader.simulator.navController.setSpeed(speedMps);
+  }
+
+  /**
+   * Stop fleet navigation
+   */
+  stopNavigation() {
+    const leader = this._getLeader();
+    if (!leader) return null;
+    return leader.simulator.navController.stop();
+  }
+
+  /**
+   * Get leader navigation state
+   */
+  getLeaderNavState() {
+    const leader = this._getLeader();
+    if (!leader) return null;
+    return leader.simulator.navController.getState();
+  }
+
+  /**
+   * Get leader drone instance
+   */
+  _getLeader() {
+    if (!this.formationController.leaderDroneId) return null;
+    return this.drones[this.formationController.leaderDroneId] || null;
   }
 
   /**

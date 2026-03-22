@@ -65,6 +65,78 @@
       </div>
     </section>
 
+    <!-- NAVIGATION — Destination + Waypoints -->
+    <section class="card" id="nav-section">
+      <h2>NAVIGATION — Set Destination / Waypoints</h2>
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <label>Nav Status</label>
+          <span id="nav-status" class="edge-off">IDLE</span>
+        </div>
+        <div class="edge-stat">
+          <label>Distance</label>
+          <span id="nav-distance">— m</span>
+        </div>
+        <div class="edge-stat">
+          <label>Bearing</label>
+          <span id="nav-bearing">—°</span>
+        </div>
+        <div class="edge-stat">
+          <label>ETA</label>
+          <span id="nav-eta">—</span>
+        </div>
+        <div class="edge-stat">
+          <label>Waypoints</label>
+          <span id="nav-wp-progress">0/0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Travelled</label>
+          <span id="nav-travelled">0 m</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+        <div class="control-group">
+          <label>Latitude:</label>
+          <input type="text" id="nav-dest-lat" placeholder="13.0600" style="width:100px;padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+        </div>
+        <div class="control-group">
+          <label>Longitude:</label>
+          <input type="text" id="nav-dest-lon" placeholder="80.2300" style="width:100px;padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+        </div>
+        <div class="control-group">
+          <label>Name (optional):</label>
+          <input type="text" id="nav-dest-name" placeholder="Target Alpha" style="width:120px;padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+        </div>
+        <div class="control-group">
+          <label>Speed (m/s):</label>
+          <input type="number" id="nav-speed" value="50" min="1" max="3000" style="width:60px;padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+        </div>
+        <div class="control-group">
+          <label>Mode:</label>
+          <select id="nav-mode-select" style="padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+            <option value="single">Single Drone</option>
+            <option value="fleet">Fleet (All Drones)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Mission:</label>
+          <select id="nav-mission-select" style="padding:4px;background:#0a1628;color:#e0e0e0;border:1px solid #1e3a5f">
+            <option value="ONE_WAY">One Way</option>
+            <option value="PATROL">Patrol (Loop)</option>
+            <option value="RETURN">Go + Return</option>
+          </select>
+        </div>
+      </div>
+      <div class="button-row" style="margin-top:8px">
+        <button id="btn-nav-go" class="btn btn-start">GO TO DESTINATION</button>
+        <button id="btn-nav-add-wp" class="btn btn-tick">ADD AS WAYPOINT</button>
+        <button id="btn-nav-start-wp" class="btn btn-start">START WAYPOINT ROUTE</button>
+        <button id="btn-nav-stop" class="btn btn-stop">STOP NAVIGATION</button>
+        <button id="btn-nav-clear" class="btn btn-stop">CLEAR WAYPOINTS</button>
+      </div>
+      <div id="nav-waypoint-list" style="margin-top:8px;font-size:11px;color:#a0b0c0"></div>
+    </section>
+
     <!-- LIVE MAP — All 48 Layer Positions on Map -->
     <section class="card map-section">
       <h2>LIVE POSITION MAP — Every Layer's Calculated Position (Click markers for details)</h2>

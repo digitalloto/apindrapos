@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAutoNavControls();
   setupDeviceGps();
   setupFleetControls();
+  setupNavigation();
   initMap();
   connectWebSocket();
 });
@@ -447,6 +448,11 @@ function updateDashboard(data, layers) {
 
   // Update map
   updateMap(data, layers);
+
+  // Navigation display
+  if (data.navigation) {
+    updateNavDisplay(data.navigation);
+  }
 
   // Recorder summary — poll every 10 cycles
   if (data.fusionCycle && data.fusionCycle % 10 === 0) {
@@ -1203,6 +1209,174 @@ function addIntelLogEntry(log, evt) {
     `<span class="log-step">${evt.message || ''}</span>`;
   log.insertBefore(entry, log.firstChild);
   while (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION — Destination + Waypoints
+// ═══════════════════════════════════════════
+let navWaypoints = [];
+let navDestMarker = null;
+let navRouteLine = null;
+let navWpMarkers = [];
+
+function setupNavigation() {
+  const goBtn = document.getElementById('btn-nav-go');
+  const addWpBtn = document.getElementById('btn-nav-add-wp');
+  const startWpBtn = document.getElementById('btn-nav-start-wp');
+  const stopBtn = document.getElementById('btn-nav-stop');
+  const clearBtn = document.getElementById('btn-nav-clear');
+
+  if (goBtn) goBtn.addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('nav-dest-lat').value);
+    const lon = parseFloat(document.getElementById('nav-dest-lon').value);
+    const name = document.getElementById('nav-dest-name').value || undefined;
+    const speed = parseFloat(document.getElementById('nav-speed').value) || 50;
+    const mode = document.getElementById('nav-mode-select').value;
+
+    if (isNaN(lat) || isNaN(lon)) return alert('Enter valid lat/lon');
+
+    const endpoint = mode === 'fleet' ? '/api/fleet/navigate' : '/api/navigate';
+    // Set speed first
+    const speedEndpoint = mode === 'fleet' ? '/api/fleet/navigate/speed' : '/api/navigate/speed';
+    fetch(speedEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ speed })
+    });
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lon, name })
+    }).then(r => r.json()).then(d => {
+      if (d.navigation) updateNavDisplay(d.navigation);
+      showDestinationOnMap(lat, lon, name);
+    });
+  });
+
+  if (addWpBtn) addWpBtn.addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('nav-dest-lat').value);
+    const lon = parseFloat(document.getElementById('nav-dest-lon').value);
+    const name = document.getElementById('nav-dest-name').value || `WP-${navWaypoints.length + 1}`;
+    if (isNaN(lat) || isNaN(lon)) return alert('Enter valid lat/lon');
+    navWaypoints.push({ lat, lon, name });
+    renderWaypointList();
+    // Clear name field for next waypoint
+    document.getElementById('nav-dest-name').value = '';
+  });
+
+  if (startWpBtn) startWpBtn.addEventListener('click', () => {
+    if (navWaypoints.length === 0) return alert('Add at least one waypoint first');
+    const speed = parseFloat(document.getElementById('nav-speed').value) || 50;
+    const mode = document.getElementById('nav-mode-select').value;
+    const missionType = document.getElementById('nav-mission-select').value;
+
+    const endpoint = mode === 'fleet' ? '/api/fleet/waypoints' : '/api/navigate/waypoints';
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ waypoints: navWaypoints, missionType, speed })
+    }).then(r => r.json()).then(d => {
+      if (d.navigation) updateNavDisplay(d.navigation);
+      showRouteOnMap(navWaypoints);
+    });
+  });
+
+  if (stopBtn) stopBtn.addEventListener('click', () => {
+    const mode = document.getElementById('nav-mode-select').value;
+    const endpoint = mode === 'fleet' ? '/api/fleet/navigate/stop' : '/api/navigate/stop';
+    fetch(endpoint, { method: 'POST' }).then(r => r.json()).then(d => {
+      if (d.navigation) updateNavDisplay(d.navigation);
+    });
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    navWaypoints = [];
+    renderWaypointList();
+    clearRouteFromMap();
+  });
+
+  // Click on map to set destination
+  setTimeout(() => {
+    if (mapInstance) {
+      mapInstance.on('click', (e) => {
+        document.getElementById('nav-dest-lat').value = e.latlng.lat.toFixed(6);
+        document.getElementById('nav-dest-lon').value = e.latlng.lng.toFixed(6);
+      });
+    }
+  }, 2000);
+}
+
+function updateNavDisplay(nav) {
+  if (!nav) return;
+  const el = (id) => document.getElementById(id);
+
+  const statusEl = el('nav-status');
+  if (statusEl) {
+    statusEl.textContent = nav.status;
+    statusEl.className = nav.status === 'NAVIGATING' || nav.status === 'PATROLLING' ? 'edge-on' : 'edge-off';
+  }
+
+  if (el('nav-distance')) {
+    const d = nav.distanceToTarget || 0;
+    el('nav-distance').textContent = d > 1000 ? (d / 1000).toFixed(1) + ' km' : d + ' m';
+  }
+  if (el('nav-bearing')) el('nav-bearing').textContent = (nav.bearingToTarget || 0) + '\u00B0';
+  if (el('nav-eta')) {
+    const s = nav.eta || 0;
+    if (s > 3600) el('nav-eta').textContent = Math.round(s / 3600) + 'h ' + Math.round((s % 3600) / 60) + 'm';
+    else if (s > 60) el('nav-eta').textContent = Math.round(s / 60) + 'm ' + (s % 60) + 's';
+    else el('nav-eta').textContent = s + 's';
+  }
+  if (el('nav-wp-progress')) el('nav-wp-progress').textContent = `${nav.waypointsReached || 0}/${nav.waypointsTotal || 0}`;
+  if (el('nav-travelled')) {
+    const t = nav.totalDistanceTravelled || 0;
+    el('nav-travelled').textContent = t > 1000 ? (t / 1000).toFixed(1) + ' km' : t + ' m';
+  }
+}
+
+function renderWaypointList() {
+  const container = document.getElementById('nav-waypoint-list');
+  if (!container) return;
+  if (navWaypoints.length === 0) {
+    container.innerHTML = '<span style="color:#555">No waypoints added. Enter lat/lon and click ADD AS WAYPOINT.</span>';
+    return;
+  }
+  container.innerHTML = navWaypoints.map((wp, i) =>
+    `<span style="color:#1a73e8">[${i + 1}]</span> ${wp.name}: ${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)} `
+  ).join(' → ');
+}
+
+function showDestinationOnMap(lat, lon, name) {
+  if (!mapInstance) return;
+  clearRouteFromMap();
+
+  navDestMarker = L.circleMarker([lat, lon], {
+    radius: 10, color: '#ff0000', fillColor: '#ff0000', fillOpacity: 0.8, weight: 3
+  }).addTo(mapInstance);
+  navDestMarker.bindTooltip(`TARGET: ${name || ''} ${lat.toFixed(4)}, ${lon.toFixed(4)}`, { permanent: true, direction: 'top' });
+}
+
+function showRouteOnMap(waypoints) {
+  if (!mapInstance) return;
+  clearRouteFromMap();
+
+  const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
+  navRouteLine = L.polyline(latlngs, { color: '#ff4444', weight: 2, dashArray: '8,8' }).addTo(mapInstance);
+
+  waypoints.forEach((wp, i) => {
+    const marker = L.circleMarker([wp.lat, wp.lon], {
+      radius: 7, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.7, weight: 2
+    }).addTo(mapInstance);
+    marker.bindTooltip(`WP-${i + 1}: ${wp.name || ''}`, { direction: 'top' });
+    navWpMarkers.push(marker);
+  });
+}
+
+function clearRouteFromMap() {
+  if (navDestMarker && mapInstance) { mapInstance.removeLayer(navDestMarker); navDestMarker = null; }
+  if (navRouteLine && mapInstance) { mapInstance.removeLayer(navRouteLine); navRouteLine = null; }
+  for (const m of navWpMarkers) { if (mapInstance) mapInstance.removeLayer(m); }
+  navWpMarkers = [];
 }
 
 function updateAlerts(alerts) {

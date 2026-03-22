@@ -73,6 +73,7 @@ src/
     mesh-network.js                    — Power-efficient inter-drone communication
     swarm-intelligence.js              — Hive mind collective AI brain
     evasion-controller.js              — RANDOM_SCATTER, SUNBURST, SPLIT_PAIRS, TERRAIN_HUG
+    navigation-controller.js           — Destination + waypoint navigation (ONE_WAY, PATROL, RETURN)
 test/
   engine.test.js                       — 41 unit tests
 .env                                   — Environment config
@@ -114,6 +115,20 @@ README.md                              — Full documentation
 - `GET /api/report/timeline` — Event timeline (filterable: `?type=SPOOF_DETECTED&severity=HIGH`)
 - `GET /api/report/mission` — Full mission report
 - `GET /api/report/export` — Export for AI training (structured JSON)
+
+### Navigation (Single Drone)
+- `POST /api/navigate` — Set destination: `{ lat, lon, name }`
+- `POST /api/navigate/waypoints` — Set waypoints: `{ waypoints: [{lat,lon,name}], missionType, speed }`
+- `GET /api/navigate/status` — Navigation status + ETA + distance + bearing
+- `POST /api/navigate/stop` — Cancel navigation
+- `POST /api/navigate/speed` — Set speed: `{ speed: 100 }`
+
+### Fleet Navigation
+- `POST /api/fleet/navigate` — Set fleet destination (leader navigates, followers hold formation)
+- `POST /api/fleet/waypoints` — Set fleet waypoint route
+- `GET /api/fleet/navigate/status` — Fleet navigation status
+- `POST /api/fleet/navigate/stop` — Cancel fleet navigation
+- `POST /api/fleet/navigate/speed` — Set fleet speed
 
 ### Sensors
 - `POST /api/sensor/register` — Register real sensor

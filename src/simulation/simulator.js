@@ -17,6 +17,7 @@
 
 const FusionEngine = require('../engine/fusion-engine');
 const { getProfile, getProfileNames } = require('../platforms/platform-profiles');
+const NavigationController = require('../swarm/navigation-controller');
 
 class Simulator {
   constructor() {
@@ -40,6 +41,9 @@ class Simulator {
     this.speedMps = 250;          // metres per second (fighter speed)
     this.headingDeg = 45;         // northeast
     this.moving = true;
+
+    // Navigation — destination-aware movement
+    this.navController = new NavigationController();
   }
 
   // Initialise with a platform profile
@@ -99,6 +103,7 @@ class Simulator {
     result.truePosition = { ...this.truePosition };
     result.scenario = this.currentScenario;
     result.tickCount = this.tickCount;
+    result.navigation = this.navController.getState();
 
     // Calculate error — how far is the fused position from truth?
     if (result.lat !== null) {
@@ -117,10 +122,27 @@ class Simulator {
     return result;
   }
 
-  // Move the platform along its heading
+  // Move the platform — uses navigation controller if destination is set
   movePosition() {
-    const distancePerTick = this.speedMps * (this.tickRate / 1000);
-    const headingRad = this.headingDeg * Math.PI / 180;
+    // Check if navigation controller has an active destination
+    const navVector = this.navController.getMovementVector(
+      this.truePosition.lat, this.truePosition.lon
+    );
+
+    let heading, speed;
+    if (navVector) {
+      heading = navVector.heading;
+      speed = navVector.speedMps;
+      // Track distance travelled
+      const dist = speed * (this.tickRate / 1000);
+      this.navController.totalDistanceTravelled += dist;
+    } else {
+      heading = this.headingDeg;
+      speed = this.speedMps;
+    }
+
+    const distancePerTick = speed * (this.tickRate / 1000);
+    const headingRad = heading * Math.PI / 180;
     const dLat = (distancePerTick * Math.cos(headingRad)) / 111320;
     const dLon = (distancePerTick * Math.sin(headingRad)) /
       (111320 * Math.cos(this.truePosition.lat * Math.PI / 180));

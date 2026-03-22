@@ -263,6 +263,53 @@ GET /api/report/timeline    Event timeline (filterable by type/severity)
 GET /api/report/export      Export for AI training (structured JSON)
 ```
 
+## Navigation — Destination + Waypoints
+
+Set a target GPS coordinate and the drone (or entire fleet) flies there.
+
+### How to Use
+1. **Enter lat/lon** in the NAVIGATION section on the dashboard (or click on the map)
+2. **Click GO TO DESTINATION** — drone turns toward target and flies there
+3. Watch distance count down, ETA update, and bearing point to target
+4. Drone stops when within 50m of destination
+
+### Waypoint Routes
+1. Enter first lat/lon → click **ADD AS WAYPOINT**
+2. Enter second lat/lon → click **ADD AS WAYPOINT**
+3. Repeat for as many waypoints as needed
+4. Select mission type: **One Way**, **Patrol (Loop)**, or **Go + Return**
+5. Click **START WAYPOINT ROUTE** — drone visits each waypoint in order
+
+### Mission Types
+| Type | Behaviour |
+|------|-----------|
+| ONE_WAY | Fly to each waypoint, stop at the last one |
+| PATROL | Loop through all waypoints continuously |
+| RETURN | Visit all waypoints, then fly back to starting position |
+
+### Fleet Navigation
+Set mode to "Fleet" — the leader drone navigates to the destination while all follower drones maintain formation around the leader.
+
+### API Endpoints
+
+**Single Drone:**
+```
+POST /api/navigate              { lat, lon, name }         Set destination
+POST /api/navigate/waypoints    { waypoints: [{lat,lon}], missionType, speed }
+GET  /api/navigate/status       Navigation status + ETA
+POST /api/navigate/stop         Cancel navigation
+POST /api/navigate/speed        { speed: 100 }             Set speed (m/s)
+```
+
+**Fleet:**
+```
+POST /api/fleet/navigate        { lat, lon, name }         Set fleet destination
+POST /api/fleet/waypoints       { waypoints, missionType, speed }
+GET  /api/fleet/navigate/status Fleet navigation status
+POST /api/fleet/navigate/stop   Cancel fleet navigation
+POST /api/fleet/navigate/speed  { speed: 100 }
+```
+
 ## Device GPS Tracking
 
 The dashboard can use your phone/laptop's real GPS:
@@ -430,6 +477,7 @@ src/
     mesh-network.js                    — Inter-drone communication
     swarm-intelligence.js              — Hive mind collective AI
     evasion-controller.js              — Scatter/reform tactics
+    navigation-controller.js           — Destination + waypoint navigation
 test/
   engine.test.js                       — Test suite
 .env                                   — Environment config
