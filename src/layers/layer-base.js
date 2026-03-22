@@ -17,6 +17,9 @@ class PositioningLayer {
     this.active = true;
     this.jammed = false;
     this.spoofed = false;
+    this.banned = false;          // Auto-ban: layer excluded from fusion
+    this.banCount = 0;            // How many times this layer has been banned
+    this.consecutiveOutliers = 0; // Consecutive cycles as outlier
     this.weight = 1.0;   // AI adjusts this based on conditions
     this.lastReading = null;
   }
@@ -80,6 +83,9 @@ class PositioningLayer {
       active: this.active,
       jammed: this.jammed,
       spoofed: this.spoofed,
+      banned: this.banned,
+      banCount: this.banCount,
+      consecutiveOutliers: this.consecutiveOutliers,
       weight: this.weight,
       accuracyRange: this.accuracyRange,
       strength: this.strength,

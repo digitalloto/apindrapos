@@ -70,18 +70,22 @@ class FusionEngine {
       readings = this.edgeProcessor.processReadings(readings);
     }
 
+    // Separate banned readings — still tracked but excluded from fusion
+    const allReadings = readings; // keep all for auto-ban tracking
+    const activeReadings = readings.filter(r => !r._banned);
+
     let result;
 
     if (this.fusionMode === 'swarm') {
       // ═══ MIROFISH SWARM MODE ═══
       // Each layer is a fish — swarm finds consensus position
-      const positionReadings = readings.filter(r => r.lat !== null && r.lon !== null);
-      const altitudeReadings = readings.filter(r => r.altitudeOnly);
+      const positionReadings = activeReadings.filter(r => r.lat !== null && r.lon !== null);
+      const altitudeReadings = activeReadings.filter(r => r.altitudeOnly);
       const swarmResult = this.swarmEngine.fuse(positionReadings, altitudeReadings, this.allLayers);
 
       result = {
         ...swarmResult,
-        activeLayerCount: readings.length,
+        activeLayerCount: activeReadings.length,
         validLayerCount: swarmResult.schoolSize,
         removedLayerCount: swarmResult.outerFish,
         removedLayers: swarmResult.outerFishNames || [],
@@ -89,16 +93,16 @@ class FusionEngine {
       };
 
       // Spoof detection from outer fish
-      result.spoofAlerts = this.spoofDetector.analyse(readings, result);
+      result.spoofAlerts = this.spoofDetector.analyse(activeReadings, result);
 
     } else {
       // ═══ WEIGHTED AVERAGE MODE ═══
       // Classic approach — compare, cancel errors, weighted output
-      const comparison = this.compareReadings(readings);
+      const comparison = this.compareReadings(activeReadings);
       const filtered = this.cancelErrors(comparison);
       result = this.produceOutput(filtered);
       result.fusionMode = 'weighted';
-      result.spoofAlerts = this.spoofDetector.analyse(readings, result);
+      result.spoofAlerts = this.spoofDetector.analyse(activeReadings, result);
       result.confidence = this.confidenceScorer.calculate(filtered, result);
     }
 
@@ -198,6 +202,10 @@ class FusionEngine {
       }
     }
 
+    // ─── AUTO-BAN: Detect and ban consistently wrong layers ───
+    result.autoBanAlerts = this._autoBanCheck(allReadings, result);
+    result.autoBanStats = this._getAutoBanStats();
+
     // ─── FLIGHT RECORDER: Log this cycle ───
     if (this.flightRecorder.recording) {
       this.flightRecorder.recordCycle(
@@ -229,6 +237,7 @@ class FusionEngine {
       // Check if real sensor data is available for this layer
       const realReading = this.sensorInterface.getReading(layer.id);
       if (realReading) {
+        if (layer.banned) realReading._banned = true;
         readings.push(realReading);
         continue;
       }
@@ -236,6 +245,7 @@ class FusionEngine {
       // Fall back to simulation
       const reading = layer.generateReading(truePosition);
       if (reading) {
+        if (layer.banned) reading._banned = true;
         readings.push(reading);
       }
     }
@@ -406,6 +416,101 @@ class FusionEngine {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AUTO-BAN SYSTEM
+  // If a layer is consistently an outlier (coordinates way off from
+  // the consensus), automatically ban it from fusion calculations.
+  // The human operator sees which layers are banned and can override.
+  // ═══════════════════════════════════════════════════════════
+
+  _autoBanCheck(readings, result) {
+    const alerts = [];
+    if (result.lat === null || result.lon === null) return alerts;
+
+    const BAN_THRESHOLD = 5;       // consecutive outlier cycles before ban
+    const REINSTATE_CYCLES = 20;   // how many cycles before re-testing a banned layer
+    const OUTLIER_DISTANCE = 200;  // metres — deviation threshold
+
+    for (const layer of this.allLayers) {
+      if (!layer.active) continue;
+
+      // Find this layer's reading
+      const reading = readings.find(r => r.layerId === layer.id);
+      if (!reading || reading.lat === null || reading.lon === null) continue;
+
+      // Skip altitude-only and velocity-only
+      if (reading.altitudeOnly || reading.velocityOnly) continue;
+
+      // Calculate distance from fused position
+      const deviation = this.haversineMetres(
+        reading.lat, reading.lon, result.lat, result.lon
+      );
+
+      if (deviation > OUTLIER_DISTANCE) {
+        layer.consecutiveOutliers++;
+
+        // BAN: layer has been consistently wrong
+        if (layer.consecutiveOutliers >= BAN_THRESHOLD && !layer.banned) {
+          layer.banned = true;
+          layer.banCount++;
+          layer.weight = 0.1; // near-zero weight
+          alerts.push({
+            type: 'AUTO_BAN',
+            message: `Layer ${layer.id} (${layer.name}) BANNED — ${Math.round(deviation)}m off for ${layer.consecutiveOutliers} consecutive cycles`,
+            severity: 'HIGH',
+            action: `Layer excluded from fusion — click layer card to manually override`,
+            timestamp: Date.now()
+          });
+        }
+      } else {
+        // Layer agrees with consensus
+        if (layer.banned) {
+          // Reinstate if it's been good
+          layer.consecutiveOutliers = Math.max(0, layer.consecutiveOutliers - 2);
+          if (layer.consecutiveOutliers <= 0) {
+            layer.banned = false;
+            layer.weight = Math.max(0.5, layer.weight); // restore some weight
+            alerts.push({
+              type: 'AUTO_REINSTATE',
+              message: `Layer ${layer.id} (${layer.name}) REINSTATED — position now agrees with consensus`,
+              severity: 'LOW',
+              action: `Layer restored to fusion — monitoring continues`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          layer.consecutiveOutliers = Math.max(0, layer.consecutiveOutliers - 1);
+        }
+      }
+    }
+
+    return alerts;
+  }
+
+  _getAutoBanStats() {
+    const banned = this.allLayers.filter(l => l.banned);
+    const totalBans = this.allLayers.reduce((sum, l) => sum + l.banCount, 0);
+    const totalReinstated = totalBans - banned.length;
+
+    // Find worst offender
+    let worstLayer = null;
+    let worstBans = 0;
+    for (const layer of this.allLayers) {
+      if (layer.banCount > worstBans) {
+        worstBans = layer.banCount;
+        worstLayer = layer;
+      }
+    }
+
+    return {
+      currentlyBanned: banned.length,
+      totalBanned: totalBans,
+      totalReinstated: Math.max(0, totalReinstated),
+      bannedLayers: banned.map(l => ({ id: l.id, name: l.name, banCount: l.banCount })),
+      worstOffender: worstLayer ? `${worstLayer.name} (${worstBans}x)` : '—'
+    };
   }
 
   // Get status of all layers for the dashboard

@@ -1,5 +1,5 @@
 /**
- * UPIE — Server — 24 Layers + MiroFish Swarm + Sensor Interface
+ * UPIE — Server — 48 Layers + MiroFish Swarm + Sensor Interface
  * Patent Pending — AIMCRS
  *
  * Express server on port 5000
@@ -423,7 +423,7 @@ app.get('/api/demos', (req, res) => {
     {
       id: 'full-system',
       name: 'Full System Demo',
-      description: 'Start fighter with all 24 layers, show swarm fusion, record flight, learn from it',
+      description: 'Start fighter with all 48 layers, show swarm fusion, record flight, learn from it',
       duration: '30 seconds',
       steps: ['Init fighter', 'Start simulation', 'Record flight', 'Run 20 cycles', 'Stop + Learn', 'Show results']
     },
@@ -778,7 +778,7 @@ server.listen(PORT, () => {
   console.log('');
   console.log('═══════════════════════════════════════════════════════');
   console.log('  UPIE — Universal Positioning Intelligence Engine');
-  console.log('  24 Positioning Layers — MiroFish Swarm Fusion');
+  console.log('  48 Positioning Layers — MiroFish Swarm Fusion');
   console.log('  Patent Pending — AIMCRS');
   console.log('  Abheet Prem Manghnani — Founder & Inventor');
   console.log('═══════════════════════════════════════════════════════');
@@ -786,7 +786,7 @@ server.listen(PORT, () => {
   console.log(`  Password:     Protected (access code required)`);
   console.log(`  Platform:     ${process.env.DEFAULT_PLATFORM || 'fighter'}`);
   console.log(`  Fusion Mode:  MiroFish Swarm Intelligence`);
-  console.log(`  Layers:       24 positioning methods`);
+  console.log(`  Layers:       48 positioning methods`);
   console.log(`  Simulation:   ${process.env.SIMULATION_MODE === 'true' ? 'ON' : 'OFF'}`);
   console.log(`  Demos:        8 interactive demo sequences`);
   console.log('═══════════════════════════════════════════════════════');

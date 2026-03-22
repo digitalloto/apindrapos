@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UPIE — Universal Positioning Intelligence Engine — 24 Layers</title>
+  <title>UPIE — Universal Positioning Intelligence Engine — 48 Layers</title>
   <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <!-- HEADER -->
   <header>
     <div class="header-left">
       <h1>UPIE</h1>
-      <span class="subtitle">Universal Positioning Intelligence Engine — 24 Layers</span>
+      <span class="subtitle">Universal Positioning Intelligence Engine — 48 Layers</span>
     </div>
     <div class="header-right">
       <span class="patent">PATENT PENDING — AIMCRS</span>
@@ -43,7 +45,7 @@
         <div class="position-meta">
           <span>Error: <strong id="error-metres">—</strong> m</span>
           <span>Cycle: <strong id="fusion-cycle">0</strong></span>
-          <span>Active: <strong id="active-layers">0</strong>/24</span>
+          <span>Active: <strong id="active-layers">0</strong>/48</span>
           <span>Valid: <strong id="valid-layers">0</strong></span>
           <span>Mode: <strong id="fusion-mode-display">SWARM</strong></span>
         </div>
@@ -63,23 +65,40 @@
       </div>
     </section>
 
-    <!-- LAYER STATUS GRID — 24 Layers in 6 columns x 4 rows -->
-    <section class="card layers-section">
-      <h2>24 POSITIONING LAYERS — Live Status</h2>
-      <div class="layer-categories">
+    <!-- LIVE MAP — All 48 Layer Positions on Map -->
+    <section class="card map-section">
+      <h2>LIVE POSITION MAP — Every Layer's Calculated Position (Click markers for details)</h2>
+      <div class="map-legend">
         <span class="cat-label cat-satellite">SATELLITE</span>
         <span class="cat-label cat-celestial">CELESTIAL</span>
         <span class="cat-label cat-internal">INTERNAL</span>
         <span class="cat-label cat-ground">GROUND</span>
         <span class="cat-label cat-signal">SIGNAL</span>
+        <span class="cat-label cat-vision">VISION/AI</span>
         <span class="cat-label cat-frontier">FRONTIER</span>
+        <span class="map-legend-fused">&#9679; FUSED = White</span>
+      </div>
+      <div id="position-map" style="height:400px;border-radius:4px;border:1px solid #1e3a5f;"></div>
+    </section>
+
+    <!-- LAYER STATUS GRID — 48 Layers with live coordinates -->
+    <section class="card layers-section">
+      <h2>48 POSITIONING LAYERS — Live Status + Coordinates (Click to Toggle)</h2>
+      <div class="layer-categories">
+        <span class="cat-label cat-satellite">SATELLITE (10)</span>
+        <span class="cat-label cat-celestial">CELESTIAL (4)</span>
+        <span class="cat-label cat-internal">INTERNAL (6)</span>
+        <span class="cat-label cat-ground">GROUND (7)</span>
+        <span class="cat-label cat-signal">SIGNAL (10)</span>
+        <span class="cat-label cat-vision">VISION/AI (4)</span>
+        <span class="cat-label cat-frontier">FRONTIER (5)</span>
       </div>
       <div class="layers-grid" id="layers-grid">
-        <!-- Populated by JavaScript -->
+        <!-- Populated by JavaScript — each card shows coordinates -->
       </div>
     </section>
 
-    <!-- BOTTOM ROW: Controls + Alerts -->
+    <!-- AUTO-BAN + CONTROLS ROW -->
     <section class="bottom-row">
       <!-- Controls -->
       <div class="card controls-card">
@@ -129,9 +148,15 @@
         </div>
       </div>
 
-      <!-- Alerts -->
+      <!-- Alerts + Auto-Ban -->
       <div class="card alerts-card">
-        <h2>ALERTS — Spoofing / Jamming Detection</h2>
+        <h2>ALERTS — Spoofing / Jamming / Auto-Ban</h2>
+        <div class="autoban-stats">
+          <span>Auto-Banned: <strong id="autoban-active" class="edge-off">0</strong></span>
+          <span>Total Bans: <strong id="autoban-total">0</strong></span>
+          <span>Reinstated: <strong id="autoban-reinstated">0</strong></span>
+          <span>Worst: <strong id="autoban-worst">—</strong></span>
+        </div>
         <div id="alerts-list" class="alerts-list">
           <div class="alert-empty">No alerts — all systems nominal</div>
         </div>
@@ -402,7 +427,7 @@
 
   <!-- FOOTER -->
   <footer>
-    UPIE — 24 Positioning Layers — MiroFish Swarm Intelligence — Patent Pending — AIMCRS
+    UPIE — 48 Positioning Layers — MiroFish Swarm Intelligence — Patent Pending — AIMCRS
     — Abheet Prem Manghnani — Chennai, India
     — HUMAN IN THE LOOP — AI assists, human decides, always.
     <span style="margin-left:16px"><a href="#" onclick="fetch('/auth/logout',{method:'POST'}).then(()=>location.href='/login')" style="color:#e74c3c;text-decoration:none">LOGOUT</a></span>

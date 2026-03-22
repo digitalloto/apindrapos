@@ -1,5 +1,5 @@
 /**
- * UPIE Dashboard — 24 Layers — MiroFish Swarm — Client JavaScript
+ * UPIE Dashboard — 48 Layers — MiroFish Swarm — Client JavaScript
  * Patent Pending — AIMCRS
  *
  * Connects to server via WebSocket for real-time fusion data.
@@ -7,38 +7,88 @@
  */
 
 // ═══════════════════════════════════════════
-// ALL 24 LAYER DEFINITIONS — with categories
+// ALL 48 LAYER DEFINITIONS — with categories
 // ═══════════════════════════════════════════
 const LAYER_DEFS = [
-  // Row 1: Satellite systems
+  // ═══ SATELLITE SYSTEMS ═══
   { id: 1,  name: 'GPS / GNSS',        cat: 'satellite' },
   { id: 2,  name: 'NAVIC (India)',      cat: 'satellite' },
   { id: 14, name: 'GLONASS (Russia)',   cat: 'satellite' },
   { id: 15, name: 'Galileo (Europe)',   cat: 'satellite' },
   { id: 16, name: 'BeiDou (China)',     cat: 'satellite' },
+  { id: 26, name: 'QZSS (Japan)',       cat: 'satellite' },
+  { id: 25, name: 'SBAS (WAAS/EGNOS)', cat: 'satellite' },
+  { id: 27, name: 'RTK GPS',            cat: 'satellite' },
+  { id: 28, name: 'PPP (Precise)',      cat: 'satellite' },
+  { id: 35, name: 'Starlink LEO',       cat: 'satellite' },
+
+  // ═══ CELESTIAL ═══
   { id: 4,  name: 'Star Tracking',     cat: 'celestial' },
-  // Row 2: Celestial + Internal
   { id: 13, name: 'Sun/Moon Celestial', cat: 'celestial' },
   { id: 23, name: 'Pulsar XNAV',       cat: 'celestial' },
+  { id: 46, name: 'Radio Astronomy',    cat: 'celestial' },
+
+  // ═══ INTERNAL SENSORS ═══
   { id: 3,  name: 'INS Dead Reckoning', cat: 'internal' },
   { id: 12, name: 'Doppler Velocity',  cat: 'internal' },
-  { id: 24, name: 'Quantum Compass',   cat: 'frontier' },
-  { id: 20, name: 'Visual Odometry',   cat: 'ground' },
-  // Row 3: Ground + Terrain
+  { id: 11, name: 'Barometric Alt',    cat: 'internal' },
+  { id: 19, name: 'Radar Altimetry',   cat: 'internal' },
+  { id: 45, name: 'Wheel Odometry',     cat: 'internal' },
+  { id: 44, name: 'PDR (Pedestrian)',   cat: 'internal' },
+
+  // ═══ GROUND/TERRAIN ═══
   { id: 5,  name: 'Terrain Matching',  cat: 'ground' },
   { id: 6,  name: 'Magnetic Anomaly',  cat: 'ground' },
   { id: 7,  name: 'Ground Emitters',   cat: 'ground' },
   { id: 17, name: 'Gravity Gradient',  cat: 'ground' },
   { id: 10, name: 'Acoustic (Water)',  cat: 'ground' },
-  { id: 22, name: 'Cosmic Ray/Muon',   cat: 'frontier' },
-  // Row 4: Signal + Altitude
+  { id: 41, name: 'Ocean Current Map', cat: 'ground' },
+  { id: 39, name: 'Seismic / Vibration', cat: 'ground' },
+
+  // ═══ SIGNAL/WIRELESS ═══
   { id: 8,  name: 'WiFi Mapping',      cat: 'signal' },
   { id: 9,  name: 'Cell Tower',        cat: 'signal' },
   { id: 18, name: 'RF Fingerprint',    cat: 'signal' },
   { id: 21, name: 'eLoran Radio',      cat: 'signal' },
-  { id: 11, name: 'Barometric Alt',    cat: 'internal' },
-  { id: 19, name: 'Radar Altimetry',   cat: 'internal' }
+  { id: 33, name: '5G NR Positioning', cat: 'signal' },
+  { id: 34, name: 'LoRa/LPWAN',        cat: 'signal' },
+  { id: 29, name: 'UWB (Ultra-Wide)',  cat: 'signal' },
+  { id: 30, name: 'BLE Beacon',        cat: 'signal' },
+  { id: 37, name: 'VLC / Li-Fi',       cat: 'signal' },
+  { id: 38, name: 'Infrared (IR)',     cat: 'signal' },
+  { id: 47, name: 'Geomag Indoor FP', cat: 'signal' },
+  { id: 48, name: 'Atmo Pressure Map', cat: 'signal' },
+
+  // ═══ VISION/AI ═══
+  { id: 20, name: 'Visual Odometry',   cat: 'vision' },
+  { id: 32, name: 'Vision Landmark AI', cat: 'vision' },
+  { id: 42, name: 'Satellite Imagery AI', cat: 'vision' },
+  { id: 43, name: 'Shadow Analysis AI', cat: 'vision' },
+
+  // ═══ FRONTIER ═══
+  { id: 24, name: 'Quantum Compass',   cat: 'frontier' },
+  { id: 22, name: 'Cosmic Ray/Muon',   cat: 'frontier' },
+  { id: 31, name: 'LiDAR SLAM',        cat: 'frontier' },
+  { id: 40, name: 'Radar SLAM / SAR', cat: 'frontier' },
+  { id: 36, name: 'Ambient Sound FP', cat: 'frontier' }
 ];
+
+// Category colors for map markers
+const CAT_COLORS = {
+  satellite: '#1a73e8',
+  celestial: '#9b59b6',
+  internal: '#e67e22',
+  ground: '#2ecc71',
+  signal: '#f1c40f',
+  frontier: '#e74c3c',
+  vision: '#00bcd4'
+};
+
+// Store last readings per layer for map
+let lastLayerReadings = {};
+let mapInstance = null;
+let mapMarkers = {};
+let fusedMarker = null;
 
 // ═══════════════════════════════════════════
 // INIT
@@ -48,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildDemoGrid();
   setupControls();
   setupAutoNavControls();
+  initMap();
   connectWebSocket();
 });
 
@@ -61,11 +112,101 @@ function buildLayerGrid() {
     card.innerHTML = `
       <div class="layer-id">${layer.id}</div>
       <div class="layer-name">${layer.name}</div>
+      <div class="layer-coords" id="layer-coords-${layer.id}">
+        <span class="layer-lat">—</span>
+        <span class="layer-lon">—</span>
+      </div>
       <div class="layer-accuracy" id="layer-acc-${layer.id}">—</div>
+      <div class="layer-ban-badge" id="layer-ban-${layer.id}" style="display:none">BANNED</div>
       <div class="layer-status-dot grey" id="layer-dot-${layer.id}"></div>
     `;
     card.addEventListener('click', () => toggleLayer(layer.id));
     grid.appendChild(card);
+  }
+}
+
+// ═══════════════════════════════════════════
+// MAP — Leaflet.js
+// ═══════════════════════════════════════════
+function initMap() {
+  const mapEl = document.getElementById('position-map');
+  if (!mapEl) return;
+
+  mapInstance = L.map('position-map', {
+    center: [13.0827, 80.2707], // Chennai, India — default
+    zoom: 15,
+    zoomControl: true,
+    attributionControl: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(mapInstance);
+
+  // Fused position marker (large, white)
+  fusedMarker = L.circleMarker([13.0827, 80.2707], {
+    radius: 10,
+    color: '#fff',
+    fillColor: '#fff',
+    fillOpacity: 1,
+    weight: 3
+  }).addTo(mapInstance);
+  fusedMarker.bindTooltip('FUSED POSITION', { permanent: false, direction: 'top' });
+}
+
+function updateMap(data, layers) {
+  if (!mapInstance) return;
+
+  // Update fused position marker
+  if (data.lat !== null && data.lon !== null) {
+    fusedMarker.setLatLng([data.lat, data.lon]);
+    fusedMarker.setTooltipContent(
+      `FUSED: ${data.lat.toFixed(6)}, ${data.lon.toFixed(6)}`
+    );
+  }
+
+  // Update per-layer markers
+  if (layers) {
+    for (const layer of layers) {
+      const reading = layer.lastReading;
+      const def = LAYER_DEFS.find(d => d.id === layer.id);
+      if (!def) continue;
+      const color = CAT_COLORS[def.cat] || '#fff';
+
+      if (reading && reading.lat !== null && reading.lon !== null && layer.active) {
+        if (!mapMarkers[layer.id]) {
+          // Create marker
+          mapMarkers[layer.id] = L.circleMarker([reading.lat, reading.lon], {
+            radius: 5,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.7,
+            weight: 1
+          }).addTo(mapInstance);
+        }
+        mapMarkers[layer.id].setLatLng([reading.lat, reading.lon]);
+        mapMarkers[layer.id].setStyle({
+          color: layer.banned ? '#e74c3c' : color,
+          fillColor: layer.banned ? '#e74c3c' : color,
+          fillOpacity: layer.banned ? 0.3 : 0.7
+        });
+        mapMarkers[layer.id].bindTooltip(
+          `${def.name} [${layer.id}]<br>${reading.lat.toFixed(6)}, ${reading.lon.toFixed(6)}<br>` +
+          `Acc: ${Math.round(reading.accuracyMetres)}m` +
+          (layer.banned ? '<br><b style="color:#e74c3c">BANNED</b>' : ''),
+          { direction: 'top' }
+        );
+        mapMarkers[layer.id].setStyle({ opacity: 1 });
+      } else if (mapMarkers[layer.id]) {
+        // Hide inactive marker
+        mapMarkers[layer.id].setStyle({ opacity: 0, fillOpacity: 0 });
+      }
+    }
+  }
+
+  // Center map on fused position (only on first data or big jump)
+  if (data.lat !== null && data.fusionCycle <= 3) {
+    mapInstance.setView([data.lat, data.lon], 15);
   }
 }
 
@@ -212,14 +353,19 @@ function updateDashboard(data, layers) {
     updateGauge(data.confidence);
   }
 
-  // Layers
+  // Layers — with coordinates and auto-ban
   if (layers) {
-    updateLayers(layers);
+    updateLayers(layers, data);
   }
 
   // Alerts
   if (data.spoofAlerts && data.spoofAlerts.length > 0) {
     updateAlerts(data.spoofAlerts);
+  }
+
+  // Auto-ban alerts
+  if (data.autoBanAlerts && data.autoBanAlerts.length > 0) {
+    updateAlerts(data.autoBanAlerts);
   }
 
   // Edge processor metrics
@@ -274,6 +420,22 @@ function updateDashboard(data, layers) {
     document.getElementById('nav-cycles').textContent = nav.cycle || 0;
   }
 
+  // Auto-ban stats
+  if (data.autoBanStats) {
+    const abs = data.autoBanStats;
+    const el = document.getElementById('autoban-total');
+    if (el) el.textContent = abs.totalBanned || 0;
+    const el2 = document.getElementById('autoban-active');
+    if (el2) el2.textContent = abs.currentlyBanned || 0;
+    const el3 = document.getElementById('autoban-reinstated');
+    if (el3) el3.textContent = abs.totalReinstated || 0;
+    const el4 = document.getElementById('autoban-worst');
+    if (el4) el4.textContent = abs.worstOffender || '—';
+  }
+
+  // Update map
+  updateMap(data, layers);
+
   // Recorder summary — poll every 10 cycles
   if (data.fusionCycle && data.fusionCycle % 10 === 0) {
     fetch('/api/recorder/summary')
@@ -313,11 +475,13 @@ function updateGauge(confidence) {
   messageEl.textContent = confidence.message;
 }
 
-function updateLayers(layers) {
+function updateLayers(layers, data) {
   for (const layer of layers) {
     const card = document.getElementById(`layer-${layer.id}`);
     const dot = document.getElementById(`layer-dot-${layer.id}`);
     const acc = document.getElementById(`layer-acc-${layer.id}`);
+    const coords = document.getElementById(`layer-coords-${layer.id}`);
+    const banBadge = document.getElementById(`layer-ban-${layer.id}`);
     if (!card) continue;
 
     // Get category from LAYER_DEFS
@@ -326,10 +490,41 @@ function updateLayers(layers) {
 
     card.className = `layer-card ${catClass}`;
 
+    // Update coordinates from last reading
+    if (coords && layer.lastReading) {
+      const r = layer.lastReading;
+      if (r.lat !== null && r.lat !== undefined) {
+        coords.querySelector('.layer-lat').textContent = r.lat.toFixed(4);
+        coords.querySelector('.layer-lon').textContent = r.lon.toFixed(4);
+      } else {
+        coords.querySelector('.layer-lat').textContent = '—';
+        coords.querySelector('.layer-lon').textContent = '—';
+      }
+      lastLayerReadings[layer.id] = r;
+    }
+
+    // Auto-ban badge
+    if (banBadge) {
+      if (layer.banned) {
+        banBadge.style.display = 'block';
+        card.classList.add('banned');
+      } else {
+        banBadge.style.display = 'none';
+      }
+    }
+
     if (!layer.active) {
       card.classList.add('inactive');
       dot.className = 'layer-status-dot grey';
       acc.textContent = 'OFF';
+      if (coords) {
+        coords.querySelector('.layer-lat').textContent = '—';
+        coords.querySelector('.layer-lon').textContent = '—';
+      }
+    } else if (layer.banned) {
+      card.classList.add('banned');
+      dot.className = 'layer-status-dot red';
+      acc.textContent = 'BANNED';
     } else if (layer.jammed) {
       card.classList.add('jammed');
       dot.className = 'layer-status-dot orange';
