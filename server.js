@@ -310,6 +310,54 @@ app.post('/api/onboard/reset', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// AUTONOMOUS NAVIGATOR — Self-reliant AI brain
+// ═══════════════════════════════════════════
+
+// Get autonomous navigator state
+app.get('/api/autonav/state', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.autoNav.getState());
+});
+
+// Get autonomous navigator position
+app.get('/api/autonav/position', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  res.json(simulator.engine.autoNav.getPosition());
+});
+
+// Set surface check interval
+app.post('/api/autonav/surface-interval', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  const { interval } = req.body;
+  simulator.engine.autoNav.setSurfaceInterval(interval);
+  res.json({ success: true, surfaceInterval: simulator.engine.autoNav.surfaceInterval });
+});
+
+// Force a surface check on next cycle
+app.post('/api/autonav/force-surface', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  simulator.engine.autoNav.forceSurfaceCheck();
+  res.json({ success: true, message: 'Surface check forced — will execute on next cycle' });
+});
+
+// Reset autonomous navigator
+app.post('/api/autonav/reset', (req, res) => {
+  if (!simulator.engine) {
+    return res.status(500).json({ error: 'Engine not initialised' });
+  }
+  simulator.engine.autoNav.reset();
+  res.json({ success: true, message: 'Autonomous navigator reset — will re-acquire initial fix' });
+});
+
+// ═══════════════════════════════════════════
 // FLIGHT RECORDER + LEARNING ENGINE
 // ═══════════════════════════════════════════
 

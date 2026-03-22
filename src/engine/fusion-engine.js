@@ -21,6 +21,7 @@ const SwarmFusionEngine = require('./swarm-fusion');
 const SensorInterface = require('../sensors/sensor-interface');
 const EdgeProcessor = require('../edge/edge-processor');
 const OnboardNavigator = require('../edge/onboard-navigator');
+const AutonomousNavigator = require('../edge/autonomous-navigator');
 const { FlightRecorder, LearningEngine } = require('../learning');
 
 class FusionEngine {
@@ -32,6 +33,7 @@ class FusionEngine {
     this.swarmEngine = new SwarmFusionEngine();
     this.edgeProcessor = new EdgeProcessor();
     this.onboardNav = new OnboardNavigator();
+    this.autoNav = new AutonomousNavigator();
     this.flightRecorder = new FlightRecorder();
     this.learningEngine = new LearningEngine();
     this.edgeEnabled = true;    // edge processing on by default
@@ -137,6 +139,61 @@ class FusionEngine {
             avgSpread: navResult.avgSpread,
             cycle: navResult.cycle
           };
+        }
+      }
+    }
+
+    // ─── AUTONOMOUS NAVIGATOR: Self-reliant AI brain ───
+    // Feeds fused result + raw readings + motion state
+    // AI navigates independently and surfaces periodically to cross-check
+    {
+      const autoNavResult = this.autoNav.update(
+        result,
+        readings,
+        result.motionState || null
+      );
+      if (autoNavResult) {
+        result.autoNav = {
+          mode: autoNavResult.mode,
+          fixLocked: autoNavResult.fixLocked,
+          autonomousPosition: autoNavResult.autonomousPosition,
+          autonomousConfidence: autoNavResult.autonomousConfidence,
+          internalPosition: autoNavResult.internalPosition,
+          nextSurfaceIn: autoNavResult.nextSurfaceIn,
+          surfaceInterval: autoNavResult.surfaceInterval,
+          externalTrustLevel: autoNavResult.externalTrustLevel,
+          autonomousTrustLevel: autoNavResult.autonomousTrustLevel,
+          jammingDetected: autoNavResult.jammingDetected,
+          spoofingDetected: autoNavResult.spoofingDetected,
+          driftAccumulated: autoNavResult.driftAccumulated,
+          lastSurfaceResult: autoNavResult.lastSurfaceResult,
+          stats: autoNavResult.stats
+        };
+
+        // If autonomous navigator detects spoofing, add alert
+        if (autoNavResult.lastSurfaceResult &&
+            autoNavResult.lastSurfaceResult.type === 'SPOOFING_DETECTED') {
+          result.spoofAlerts = result.spoofAlerts || [];
+          result.spoofAlerts.push({
+            type: 'AUTO_NAV_SPOOF',
+            message: autoNavResult.lastSurfaceResult.message,
+            severity: 'CRITICAL',
+            action: autoNavResult.lastSurfaceResult.recommendation,
+            timestamp: Date.now()
+          });
+        }
+
+        // If jamming detected, add alert
+        if (autoNavResult.lastSurfaceResult &&
+            autoNavResult.lastSurfaceResult.type === 'JAMMING_SUSPECTED') {
+          result.spoofAlerts = result.spoofAlerts || [];
+          result.spoofAlerts.push({
+            type: 'AUTO_NAV_JAMMING',
+            message: autoNavResult.lastSurfaceResult.message,
+            severity: 'HIGH',
+            action: autoNavResult.lastSurfaceResult.recommendation,
+            timestamp: Date.now()
+          });
         }
       }
     }

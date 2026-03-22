@@ -224,6 +224,117 @@
       </div>
     </section>
 
+    <!-- AUTONOMOUS NAVIGATOR — Self-Reliant AI Brain -->
+    <section class="card autonav-section">
+      <h2>AUTONOMOUS NAVIGATOR — Self-Reliant AI Brain (Anti-Jam / Anti-Spoof / Anti-External)</h2>
+      <div class="autonav-top-row">
+        <div class="autonav-mode-box">
+          <label>MODE</label>
+          <span id="autonav-mode" class="autonav-mode acquiring">ACQUIRING</span>
+        </div>
+        <div class="autonav-controls">
+          <label>Surface Interval:</label>
+          <select id="autonav-interval-select">
+            <option value="5">Every 5 cycles (Frequent)</option>
+            <option value="10" selected>Every 10 cycles (Default)</option>
+            <option value="20">Every 20 cycles (Autonomous)</option>
+            <option value="50">Every 50 cycles (Deep Autonomous)</option>
+          </select>
+          <button id="btn-autonav-surface" class="btn btn-tick">FORCE SURFACE CHECK</button>
+          <button id="btn-autonav-reset" class="btn btn-stop">RESET</button>
+        </div>
+      </div>
+      <div class="autonav-grid">
+        <div class="autonav-card">
+          <h3>AI POSITION (Independent)</h3>
+          <div class="edge-stats">
+            <div class="edge-stat">
+              <label>Lat</label>
+              <span id="autonav-lat">—</span>
+            </div>
+            <div class="edge-stat">
+              <label>Lon</label>
+              <span id="autonav-lon">—</span>
+            </div>
+            <div class="edge-stat">
+              <label>AI Confidence</label>
+              <span id="autonav-confidence">—%</span>
+            </div>
+            <div class="edge-stat">
+              <label>Next Surface In</label>
+              <span id="autonav-next-surface">— cycles</span>
+            </div>
+          </div>
+        </div>
+        <div class="autonav-card">
+          <h3>TRUST LEVELS</h3>
+          <div class="edge-stats">
+            <div class="edge-stat">
+              <label>AI Trust</label>
+              <span id="autonav-ai-trust" class="edge-on">—%</span>
+            </div>
+            <div class="edge-stat">
+              <label>External Trust</label>
+              <span id="autonav-ext-trust">—%</span>
+            </div>
+            <div class="edge-stat">
+              <label>Drift Accumulated</label>
+              <span id="autonav-drift">— m</span>
+            </div>
+            <div class="edge-stat">
+              <label>Corrections</label>
+              <span id="autonav-corrections">— m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="autonav-grid">
+        <div class="autonav-card">
+          <h3>ANTI-JAM / ANTI-SPOOF STATUS</h3>
+          <div class="edge-stats">
+            <div class="edge-stat">
+              <label>Jamming</label>
+              <span id="autonav-jamming" class="edge-on">CLEAR</span>
+            </div>
+            <div class="edge-stat">
+              <label>Spoofing</label>
+              <span id="autonav-spoofing" class="edge-on">CLEAR</span>
+            </div>
+            <div class="edge-stat">
+              <label>Jamming Events</label>
+              <span id="autonav-jam-count">0</span>
+            </div>
+            <div class="edge-stat">
+              <label>Spoofs Rejected</label>
+              <span id="autonav-spoof-count">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="autonav-card">
+          <h3>PERFORMANCE</h3>
+          <div class="edge-stats">
+            <div class="edge-stat">
+              <label>Surface Checks</label>
+              <span id="autonav-surface-count">0</span>
+            </div>
+            <div class="edge-stat">
+              <label>Agreements</label>
+              <span id="autonav-agreements">0</span>
+            </div>
+            <div class="edge-stat">
+              <label>Longest Solo</label>
+              <span id="autonav-longest-solo">0 cycles</span>
+            </div>
+            <div class="edge-stat">
+              <label>Avg Deviation</label>
+              <span id="autonav-avg-dev">— m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="autonav-surface-log" class="demo-log" style="margin-top:8px"></div>
+    </section>
+
     <!-- FLIGHT RECORDER + LEARNING ROW -->
     <section class="top-row">
       <div class="card">

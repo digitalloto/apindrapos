@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildLayerGrid();
   buildDemoGrid();
   setupControls();
+  setupAutoNavControls();
   connectWebSocket();
 });
 
@@ -251,6 +252,11 @@ function updateDashboard(data, layers) {
     }
   }
 
+  // Autonomous Navigator
+  if (data.autoNav) {
+    updateAutoNav(data.autoNav);
+  }
+
   // Onboard Navigator
   if (data.onboardNav) {
     const nav = data.onboardNav;
@@ -432,6 +438,134 @@ function addDemoLog(message) {
   log.insertBefore(entry, log.firstChild);
   // Keep max 20 entries
   while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ═══════════════════════════════════════════
+// AUTONOMOUS NAVIGATOR — Self-Reliant AI Brain
+// ═══════════════════════════════════════════
+
+function setupAutoNavControls() {
+  const intervalSelect = document.getElementById('autonav-interval-select');
+  if (intervalSelect) {
+    intervalSelect.addEventListener('change', (e) => {
+      fetch('/api/autonav/surface-interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval: parseInt(e.target.value) })
+      });
+    });
+  }
+
+  const surfaceBtn = document.getElementById('btn-autonav-surface');
+  if (surfaceBtn) {
+    surfaceBtn.addEventListener('click', () => {
+      fetch('/api/autonav/force-surface', { method: 'POST' });
+    });
+  }
+
+  const resetBtn = document.getElementById('btn-autonav-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      fetch('/api/autonav/reset', { method: 'POST' });
+    });
+  }
+}
+
+function updateAutoNav(autoNav) {
+  if (!autoNav) return;
+
+  // Mode
+  const modeEl = document.getElementById('autonav-mode');
+  if (modeEl) {
+    modeEl.textContent = autoNav.mode;
+    modeEl.className = 'autonav-mode';
+    if (autoNav.mode === 'ACQUIRING') modeEl.classList.add('acquiring');
+    else if (autoNav.mode === 'AUTONOMOUS') modeEl.classList.add('autonomous');
+    else if (autoNav.mode === 'SURFACE_CHECK') modeEl.classList.add('surface-check');
+  }
+
+  // AI Position
+  const pos = autoNav.autonomousPosition;
+  document.getElementById('autonav-lat').textContent =
+    pos && pos.lat !== null ? pos.lat.toFixed(6) : '—';
+  document.getElementById('autonav-lon').textContent =
+    pos && pos.lon !== null ? pos.lon.toFixed(6) : '—';
+  document.getElementById('autonav-confidence').textContent =
+    (autoNav.autonomousConfidence || 0) + '%';
+  document.getElementById('autonav-next-surface').textContent =
+    (autoNav.nextSurfaceIn || 0) + ' cycles';
+
+  // Trust levels
+  const aiTrust = document.getElementById('autonav-ai-trust');
+  aiTrust.textContent = (autoNav.autonomousTrustLevel || 0) + '%';
+  aiTrust.className = autoNav.autonomousTrustLevel >= 50 ? 'edge-on' : 'edge-off';
+
+  const extTrust = document.getElementById('autonav-ext-trust');
+  extTrust.textContent = (autoNav.externalTrustLevel || 0) + '%';
+  extTrust.className = autoNav.externalTrustLevel >= 50 ? 'edge-on' : 'edge-off';
+
+  document.getElementById('autonav-drift').textContent =
+    (autoNav.driftAccumulated || 0).toFixed(1) + ' m';
+  document.getElementById('autonav-corrections').textContent =
+    (autoNav.correctionApplied || 0).toFixed(1) + ' m';
+
+  // Anti-jam / Anti-spoof
+  const jamEl = document.getElementById('autonav-jamming');
+  if (autoNav.jammingDetected) {
+    jamEl.textContent = 'DETECTED';
+    jamEl.className = 'edge-off';
+  } else {
+    jamEl.textContent = 'CLEAR';
+    jamEl.className = 'edge-on';
+  }
+
+  const spoofEl = document.getElementById('autonav-spoofing');
+  if (autoNav.spoofingDetected) {
+    spoofEl.textContent = 'REJECTED';
+    spoofEl.className = 'edge-off';
+  } else {
+    spoofEl.textContent = 'CLEAR';
+    spoofEl.className = 'edge-on';
+  }
+
+  // Stats
+  const stats = autoNav.stats || {};
+  document.getElementById('autonav-jam-count').textContent = stats.totalJammingEvents || 0;
+  document.getElementById('autonav-spoof-count').textContent = stats.totalSpoofingRejected || 0;
+  document.getElementById('autonav-surface-count').textContent = stats.totalSurfaceChecks || 0;
+  document.getElementById('autonav-agreements').textContent = stats.totalAgreements || 0;
+  document.getElementById('autonav-longest-solo').textContent =
+    (stats.longestAutonomousStreak || 0) + ' cycles';
+  document.getElementById('autonav-avg-dev').textContent =
+    (stats.avgSurfaceDeviation || 0).toFixed(1) + ' m';
+
+  // Surface check log
+  if (autoNav.lastSurfaceResult) {
+    addAutoNavLog(autoNav.lastSurfaceResult);
+  }
+}
+
+let lastAutoNavLogMsg = '';
+function addAutoNavLog(result) {
+  if (!result || result.message === lastAutoNavLogMsg) return;
+  lastAutoNavLogMsg = result.message;
+
+  const log = document.getElementById('autonav-surface-log');
+  if (!log) return;
+
+  const now = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'demo-log-entry';
+
+  let color = '#2ecc71';
+  if (result.severity === 'HIGH' || result.severity === 'CRITICAL') color = '#e74c3c';
+  else if (result.severity === 'MEDIUM') color = '#e67e22';
+
+  entry.innerHTML = `<span class="log-time">${now}</span>` +
+    `<span style="color:${color};font-weight:bold">[${result.type}]</span> ` +
+    `<span class="log-step">${result.message}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 15) log.removeChild(log.lastChild);
 }
 
 function updateAlerts(alerts) {
