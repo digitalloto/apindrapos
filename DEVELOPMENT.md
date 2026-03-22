@@ -2,9 +2,10 @@
 
 ## What This Project Is
 
-UPIE (Universal Positioning Intelligence Engine) is a GPS-redundancy positioning fusion system.
-It fuses 48 different positioning methods (GPS, GLONASS, INS, WiFi, star tracking, etc.) using
-a "MiroFish Swarm Intelligence" algorithm to maintain accurate position even when GPS is jammed or spoofed.
+UPIE (Universal Positioning Intelligence Engine) is a GPS-redundancy positioning fusion system
+with multi-drone swarm intelligence. It fuses 48 positioning methods using MiroFish Swarm
+Intelligence to maintain accurate position even when GPS is jammed or spoofed. Supports
+multi-drone fleets with formation flying, mesh communication, hive mind AI, and evasion tactics.
 
 Patent Pending — AIMCRS — Abheet Prem Manghnani
 
@@ -28,121 +29,148 @@ Default password: `aimcrs2026` (configurable via UPIE_PASSWORD env var)
 ## Project Structure
 
 ```
-server.js                          — Express server, all API endpoints, WebSocket
+server.js                              — Express server, all API endpoints, WebSocket
 public/
-  index.html                       — Dashboard HTML (single page)
-  login.html                       — Login page
-  js/dashboard.js                  — Dashboard client JS (WebSocket, map, controls)
-  css/dashboard.css                — All styles
+  index.html                           — Dashboard HTML (single page)
+  login.html                           — Login page
+  js/dashboard.js                      — Client JS (WebSocket, map, controls, fleet UI)
+  css/dashboard.css                    — Styles
 src/
   engine/
-    fusion-engine.js               — Core fusion engine (orchestrates everything)
-    swarm-fusion.js                — MiroFish Swarm Intelligence algorithm
-    confidence-scorer.js           — Weighted-mode confidence scoring
+    fusion-engine.js                   — Core fusion engine (orchestrates everything)
+    swarm-fusion.js                    — MiroFish Swarm Intelligence algorithm
+    confidence-scorer.js               — Weighted-mode confidence scoring
+    spoof-detector.js                  — Spoof detection (500m+ deviations, 1000m+ jumps)
   layers/
-    layer-base.js                  — Base class for all 48 layers
-    01-gps-gnss.js ... 48-*.js     — Individual layer implementations
-    create-all-layers.js           — Factory that creates all 48 layers
+    layer-base.js                      — Base class for all 48 layers
+    01-gps-gnss.js ... 48-*.js         — Individual layer implementations
+    create-all-layers.js               — Factory that creates all 48 layers
   platforms/
-    platform-profiles.js           — 8 platform configs (fighter, submarine, drone, etc.)
+    platform-profiles.js               — 8 platform configs (fighter, submarine, drone, etc.)
   simulation/
-    simulator.js                   — Simulation controller
-    movement-sim.js                — Simulated movement patterns
+    simulator.js                       — Single-drone simulation controller
+    movement-sim.js                    — Simulated movement patterns
   edge/
-    edge-processor.js              — Kalman filter + noise reduction
-    noise-reducer.js               — Per-layer Kalman filters
-    motion-tracker.js              — Speed/heading/maneuver detection
-    onboard-navigator.js           — Independent path tracking
-    autonomous-navigator.js        — Self-reliant AI brain (anti-jam/spoof)
+    edge-processor.js                  — Kalman filter + noise reduction
+    noise-reducer.js                   — Per-layer Kalman filters
+    motion-tracker.js                  — Speed/heading/maneuver detection
+    onboard-navigator.js               — Independent path tracking
+    autonomous-navigator.js            — Self-reliant AI brain (anti-jam/spoof)
   sensors/
-    sensor-interface.js            — Real sensor data input API
+    sensor-interface.js                — Real sensor data input API
   learning/
-    flight-recorder.js             — Black box recorder
-    learning-engine.js             — Learns from recorded flights
+    flight-recorder.js                 — Black box recorder (JSONL per cycle)
+    learning-engine.js                 — Learns from recorded flights
+  intelligence/                        — Intelligence reporting modules
+    ban-report.js                      — Ban event tracking + analysis (WHY/WHEN/WHERE)
+    spoof-tracker.js                   — Ghost trail recording + pattern detection
+    jammer-locator.js                  — Jammer triangulation from multi-drone data
+    mission-report.js                  — Full audit trail + timeline + AI training export
+  swarm/                               — Multi-drone swarm system
+    drone-instance.js                  — Single drone wrapper (own Simulator + Engine)
+    fleet-manager.js                   — Orchestrates N drones, coordinates all systems
+    formation-controller.js            — V_SHAPE, LINE, DIAMOND, GRID, CIRCLE formations
+    mesh-network.js                    — Power-efficient inter-drone communication
+    swarm-intelligence.js              — Hive mind collective AI brain
+    evasion-controller.js              — RANDOM_SCATTER, SUNBURST, SPLIT_PAIRS, TERRAIN_HUG
 test/
-  engine.test.js                   — 41 unit tests
-.env                               — Environment config
-.replit                            — Replit run/deploy config
-replit.nix                         — Nix packages (Node.js 20)
+  engine.test.js                       — 41 unit tests
+.env                                   — Environment config
+.replit                                — Replit run/deploy config
+replit.nix                             — Nix packages (Node.js 20)
+README.md                              — Full documentation
 ```
 
 ## Key API Endpoints
 
-### Core
+### Core (Single Drone)
 - `POST /api/start` — Start simulation
 - `POST /api/stop` — Stop simulation
 - `POST /api/tick` — Single fusion cycle
 - `GET /api/state` — Current engine state
+- `POST /api/platform` — Change platform
+- `POST /api/scenario` — Change scenario
+- `POST /api/fusion-mode` — Switch fusion algorithm (swarm/weighted)
+- `POST /api/precision-mode` — Set precision (standard/high/warfare/maximum)
 
-### Configuration
-- `POST /api/platform` — Change platform (body: `{ platform: "fighter" }`)
-- `POST /api/scenario` — Change scenario (body: `{ scenario: "gps-jamming" }`)
-- `POST /api/fusion-mode` — Switch fusion algorithm (body: `{ mode: "swarm" }`)
-- `POST /api/precision-mode` — Set precision level (body: `{ mode: "warfare" }`)
-  - Modes: `standard`, `high`, `warfare`, `maximum`
+### Fleet (Multi-Drone)
+- `POST /api/fleet/init` — Initialize fleet: `{ droneCount: 5, platform, formation, spacing }`
+- `POST /api/fleet/start` / `POST /api/fleet/stop` — Start/stop fleet
+- `GET /api/fleet/state` — All drone positions + statuses
+- `POST /api/fleet/add-drone` / `POST /api/fleet/remove-drone` — Manage drones
+- `POST /api/fleet/formation` — Change formation: `{ formation: "DIAMOND", spacing: 300 }`
+- `POST /api/fleet/scenario` — Set scenario for all drones
+- `POST /api/fleet/evade` — Trigger evasion: `{ reason, pattern }`
+- `POST /api/fleet/reform` — Force reform at new rally point
+- `GET /api/fleet/drone/:id/state` — Single drone state
+- `GET /api/fleet/hivemind` — Hive mind state
+- `GET /api/fleet/mesh` — Mesh network status
 
-### Device GPS (NEW)
-- Browser uses `navigator.geolocation.watchPosition()` to get real device GPS
-- `POST /api/sensor/register` — Register device GPS as real sensor
-- `POST /api/sensor/feed` — Feed real GPS coordinates to fusion engine
-- `POST /api/sensor/disconnect` — Stop feeding, return to simulation
-- Dashboard has START TRACKING / FEED TO ENGINE buttons
+### Intelligence Reports
+- `GET /api/report/intelligence` — Full report (bans + spoofs + jammers + mission)
+- `GET /api/report/bans` — Ban events with WHY/WHEN/WHERE
+- `GET /api/report/spoofs` — Spoof trails, ghost positions, patterns
+- `GET /api/report/jammers` — Estimated jammer locations + jam zones
+- `GET /api/report/timeline` — Event timeline (filterable: `?type=SPOOF_DETECTED&severity=HIGH`)
+- `GET /api/report/mission` — Full mission report
+- `GET /api/report/export` — Export for AI training (structured JSON)
 
-### Demos
-- `GET /api/demos` — List 8 built-in demos
-- `POST /api/demo/run` — Run a demo (body: `{ demoId: "gps-denied" }`)
+### Sensors
+- `POST /api/sensor/register` — Register real sensor
+- `POST /api/sensor/feed` — Feed real sensor data
+- `POST /api/sensor/disconnect` — Disconnect sensor
 
 ### Learning
-- `POST /api/recorder/start` — Start recording flight data
-- `POST /api/recorder/stop` — Stop recording + trigger learning
-- `GET /api/learning/knowledge` — Get learned knowledge
+- `POST /api/recorder/start` — Start recording
+- `POST /api/recorder/stop` — Stop + learn
+- `GET /api/learning/knowledge` — Learned knowledge
+- `POST /api/learning/apply` — Apply learned weights
 
 ## WebSocket Protocol
 
-Connect to `ws://host:5000` (with auth cookie). Messages:
+Connect to `ws://host:5000` (with auth cookie):
 
 ```json
-{ "type": "fusion", "data": { "lat": ..., "lon": ..., "confidence": {...} }, "layers": [...] }
-{ "type": "demo", "demoId": "...", "step": "...", "data": {...} }
-{ "type": "init", "data": {...} }
+{ "type": "fusion", "data": { ... }, "layers": [ ... ] }
+{ "type": "fleet", "data": { "droneResults": {}, "hiveMind": {}, "formation": {}, "evasion": {} } }
+{ "type": "demo", "demoId": "...", "step": "..." }
+{ "type": "init", "data": { ... }, "fleet": { ... } }
 ```
 
 ## Recent Changes (Latest First)
 
+### Multi-Drone Swarm + Intelligence Reporting
+- **Fleet Manager**: N drones, each with own UPIE system, coordinated by fleet manager
+- **Formation Controller**: 5 formation types (V_SHAPE, LINE, DIAMOND, GRID, CIRCLE)
+- **Mesh Network**: Power-efficient inter-drone comms with priority queue (EVADE > THREAT > FORMATION > HEARTBEAT)
+- **Swarm Intelligence (Hive Mind)**: Cross-validates positions, detects swarm-level threats, makes evasion decisions
+- **Evasion Controller**: 4 scatter patterns, auto-reform at random rally points
+- **Ban Intelligence Report**: WHY/WHEN/WHERE signals banned, ghost vs real position
+- **Spoof Tracker**: Ghost trails, pattern detection (CONSTANT_OFFSET, GRADUAL_DRIFT, SUDDEN_REDIRECT)
+- **Jammer Locator**: Triangulates jammer positions from multi-drone data, estimates effective radius
+- **Mission Report**: Full audit trail, event timeline, exportable for AI training
+- **Dashboard**: Fleet control panel, drone grid, intelligence reports panel, timeline viewer
+
 ### Device GPS + Precision Mode + Confidence Improvements
-- **Device GPS Tracking**: Dashboard section that uses `navigator.geolocation` to track the
-  phone/laptop running the dashboard. Can feed real GPS data into the fusion engine as Layer 1.
-  Green marker shows device position on the map.
-- **Precision Mode**: 4-level selector (Standard/High/Warfare/Maximum) that tunes swarm
-  parameters for different accuracy requirements. Maximum mode runs 50 swarm iterations with
-  1.5σ outlier threshold for sub-1m accuracy.
-- **Confidence Scoring**: Changed from stepped brackets to continuous exponential decay for
-  tightness. Added signal/vision diversity categories. Added GOOD level between HIGH and MODERATE.
+- Device GPS tracking via `navigator.geolocation`
+- Precision Mode (Standard/High/Warfare/Maximum)
+- Continuous exponential confidence scoring
 
 ## Known Issues
 
-1. Test `createAllLayers returns 24 layers` fails — expects 24, project now has 48 layers. Test needs updating.
-2. Device GPS requires HTTPS on mobile browsers (Chrome blocks geolocation on HTTP except localhost).
-3. Confidence score in simulation mode typically 60-80% due to simulated noise — this is expected.
-   Use Precision Mode "warfare" or "maximum" to push confidence higher.
+1. Test `createAllLayers returns 24 layers` fails — expects 24, got 48. Test needs updating.
+2. Device GPS requires HTTPS on mobile (works on localhost).
+3. Confidence 60-80% in simulation is expected — use Precision Mode warfare/maximum to push higher.
 
-## How Confidence Score Works (Swarm Mode)
+## Key Architecture Notes for Modifying Code
 
-4 factors, max 100 points:
-1. **School Size** (0-35 pts): Ratio of fish in school vs total
-2. **Tightness** (0-30 pts): Continuous exponential — `30 * exp(-radius/80)`
-3. **Diversity** (0-20 pts): 6 categories (satellite, celestial, ground, internal, signal, vision)
-4. **Outlier Penalty** (0-15 pts): Fewer outliers = higher score
-
-Levels: MAXIMUM (95+), HIGH (85+), GOOD (70+), MODERATE (55+), LOW (40+), CRITICAL (<40)
-
-## How to Improve Accuracy for Warfare
-
-1. Use Precision Mode "warfare" or "maximum"
-2. Feed real sensor data (Device GPS, or other sensors via `/api/sensor/feed`)
-3. Record flights and let the learning engine optimize weights
-4. More active layers = better diversity score = higher confidence
-5. Real sensors eliminate simulation noise which is the main accuracy limiter
+- **Modular layers**: Each intelligence/swarm module can be enabled/disabled independently
+- **FleetManager** wraps everything: it creates DroneInstance objects, each containing their own Simulator
+- **Single-drone mode** still works — the original single-drone APIs are unchanged
+- **All data structures** are plain JS objects — no database, no ORM
+- **Intelligence modules** are stateful — call `.reset()` to clear between missions
+- **Evasion** auto-triggers when hive mind threat level > 70 — configurable via `swarmIntelligence.evasionThreatThreshold`
+- **Formation slots** are automatically reassigned when drones are added/removed
 
 ## Environment Variables (.env)
 

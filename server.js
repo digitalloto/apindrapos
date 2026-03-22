@@ -799,6 +799,154 @@ app.post('/api/demo/stop', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// FLEET — Multi-Drone Swarm System
+// ═══════════════════════════════════════════
+
+const FleetManager = require('./src/swarm/fleet-manager');
+const fleet = new FleetManager();
+
+// Initialize fleet with N drones
+app.post('/api/fleet/init', (req, res) => {
+  const { droneCount, platform, formation, spacing, startLat, startLon } = req.body;
+  const result = fleet.initFleet(droneCount || 5, {
+    platform: platform || 'small-drone',
+    formation: formation || 'V_SHAPE',
+    spacing: spacing || 200,
+    startLat: startLat || 13.0827,
+    startLon: startLon || 80.2707
+  });
+  res.json({ success: true, fleet: result });
+});
+
+// Get fleet state
+app.get('/api/fleet/state', (req, res) => {
+  res.json(fleet.getFleetState());
+});
+
+// Start fleet simulation
+app.post('/api/fleet/start', (req, res) => {
+  fleet.start(broadcastFleetResult);
+  res.json({ success: true, message: 'Fleet simulation started' });
+});
+
+// Stop fleet simulation
+app.post('/api/fleet/stop', (req, res) => {
+  fleet.stop();
+  res.json({ success: true, message: 'Fleet simulation stopped' });
+});
+
+// Add drone to fleet
+app.post('/api/fleet/add-drone', (req, res) => {
+  const { droneId, platform, callsign, startLat, startLon } = req.body;
+  const id = droneId || `DRONE-${Object.keys(fleet.drones).length + 1}`;
+  const result = fleet.addDrone(id, {
+    platform: platform || 'small-drone',
+    callsign,
+    startLat: startLat || 13.0827 + (Math.random() - 0.5) * 0.002,
+    startLon: startLon || 80.2707 + (Math.random() - 0.5) * 0.002
+  });
+  res.json({ success: true, drone: result });
+});
+
+// Remove drone from fleet
+app.post('/api/fleet/remove-drone', (req, res) => {
+  const { droneId } = req.body;
+  fleet.removeDrone(droneId);
+  res.json({ success: true, droneId });
+});
+
+// Change formation
+app.post('/api/fleet/formation', (req, res) => {
+  const { formation, spacing } = req.body;
+  const result = fleet.setFormation(formation, spacing);
+  res.json({ success: true, formation: result });
+});
+
+// Set scenario for all drones
+app.post('/api/fleet/scenario', (req, res) => {
+  const { scenario } = req.body;
+  fleet.setScenario(scenario);
+  res.json({ success: true, scenario });
+});
+
+// Trigger evasion
+app.post('/api/fleet/evade', (req, res) => {
+  const { reason, pattern } = req.body;
+  const result = fleet.triggerEvasion(
+    reason || 'Manual evasion trigger',
+    pattern || 'RANDOM_SCATTER'
+  );
+  res.json({ success: true, evasion: result });
+});
+
+// Force reform
+app.post('/api/fleet/reform', (req, res) => {
+  const result = fleet.forceReform();
+  res.json({ success: true, evasion: result });
+});
+
+// Get single drone state
+app.get('/api/fleet/drone/:id/state', (req, res) => {
+  const drone = fleet.drones[req.params.id];
+  if (!drone) return res.status(404).json({ error: 'Drone not found' });
+  res.json(drone.getState());
+});
+
+// ═══════════════════════════════════════════
+// INTELLIGENCE REPORTS
+// ═══════════════════════════════════════════
+
+// Full intelligence report
+app.get('/api/report/intelligence', (req, res) => {
+  res.json(fleet.getIntelligenceReport());
+});
+
+// Ban report
+app.get('/api/report/bans', (req, res) => {
+  res.json(fleet.banReport.getFullReport());
+});
+
+// Spoof trails
+app.get('/api/report/spoofs', (req, res) => {
+  res.json(fleet.spoofTracker.getFullReport());
+});
+
+// Jammer locations
+app.get('/api/report/jammers', (req, res) => {
+  res.json(fleet.jammerLocator.getFullReport());
+});
+
+// Mission timeline
+app.get('/api/report/timeline', (req, res) => {
+  const { type, severity, since } = req.query;
+  const filters = {};
+  if (type) filters.type = type;
+  if (severity) filters.severity = severity;
+  if (since) filters.since = parseInt(since);
+  res.json(fleet.missionReport.getTimeline(filters));
+});
+
+// Full mission report
+app.get('/api/report/mission', (req, res) => {
+  res.json(fleet.missionReport.getFullReport());
+});
+
+// Export for AI training
+app.get('/api/report/export', (req, res) => {
+  res.json(fleet.missionReport.exportForTraining());
+});
+
+// Hive mind state
+app.get('/api/fleet/hivemind', (req, res) => {
+  res.json(fleet.swarmIntelligence.getState());
+});
+
+// Mesh network status
+app.get('/api/fleet/mesh', (req, res) => {
+  res.json(fleet.meshNetwork.getStatus());
+});
+
+// ═══════════════════════════════════════════
 // WEBSOCKET — Real-time fusion data to dashboard
 // ═══════════════════════════════════════════
 
@@ -807,6 +955,19 @@ function broadcastResult(result) {
     type: 'fusion',
     data: result,
     layers: simulator.engine.getLayerStatuses()
+  });
+
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+}
+
+function broadcastFleetResult(result) {
+  const data = JSON.stringify({
+    type: 'fleet',
+    data: result
   });
 
   wss.clients.forEach(client => {
@@ -828,7 +989,8 @@ wss.on('connection', (ws, req) => {
   // Send current state on connect
   ws.send(JSON.stringify({
     type: 'init',
-    data: simulator.getState()
+    data: simulator.getState(),
+    fleet: fleet.getFleetState()
   }));
 });
 
@@ -851,6 +1013,9 @@ server.listen(PORT, () => {
   console.log(`  Layers:       48 positioning methods`);
   console.log(`  Simulation:   ${process.env.SIMULATION_MODE === 'true' ? 'ON' : 'OFF'}`);
   console.log(`  Demos:        8 interactive demo sequences`);
+  console.log(`  Fleet:        Multi-drone swarm system ready`);
+  console.log(`  Intel:        Ban reports + Spoof tracker + Jammer locator`);
+  console.log(`  Hive Mind:    Collective swarm intelligence active`);
   console.log('═══════════════════════════════════════════════════════');
   console.log('  HUMAN IN THE LOOP — AI assists, human decides, always.');
   console.log('═══════════════════════════════════════════════════════');

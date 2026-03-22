@@ -467,6 +467,113 @@
       </div>
     </section>
 
+    <!-- FLEET SWARM SYSTEM -->
+    <section class="card" id="fleet-section">
+      <h2>DRONE SWARM — Multi-Drone Fleet Control</h2>
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <label>Fleet Status</label>
+          <span id="fleet-status" class="edge-off">OFFLINE</span>
+        </div>
+        <div class="edge-stat">
+          <label>Drones</label>
+          <span id="fleet-drone-count">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Formation</label>
+          <span id="fleet-formation">—</span>
+        </div>
+        <div class="edge-stat">
+          <label>Integrity</label>
+          <span id="fleet-integrity">—%</span>
+        </div>
+        <div class="edge-stat">
+          <label>Threat Level</label>
+          <span id="fleet-threat">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Hive Mind</label>
+          <span id="fleet-hivemind" class="edge-on">ACTIVE</span>
+        </div>
+        <div class="edge-stat">
+          <label>Evasion</label>
+          <span id="fleet-evasion" class="edge-on">CLEAR</span>
+        </div>
+        <div class="edge-stat">
+          <label>Mesh Msgs</label>
+          <span id="fleet-mesh-msgs">0</span>
+        </div>
+      </div>
+      <div class="button-row" style="margin-top:10px">
+        <button id="btn-fleet-init" class="btn btn-start">INIT 5 DRONES</button>
+        <button id="btn-fleet-start" class="btn btn-start">START FLEET</button>
+        <button id="btn-fleet-stop" class="btn btn-stop">STOP FLEET</button>
+        <button id="btn-fleet-evade" class="btn btn-stop">TRIGGER EVASION</button>
+        <button id="btn-fleet-reform" class="btn btn-tick">REFORM</button>
+      </div>
+      <div class="control-group" style="margin-top:8px">
+        <label>Formation:</label>
+        <select id="fleet-formation-select">
+          <option value="V_SHAPE">V-Shape (Default)</option>
+          <option value="LINE">Line (Single File)</option>
+          <option value="DIAMOND">Diamond</option>
+          <option value="GRID">Grid (Area Coverage)</option>
+          <option value="CIRCLE">Circle</option>
+        </select>
+        <label style="margin-left:8px">Scenario:</label>
+        <select id="fleet-scenario-select">
+          <option value="normal">Normal</option>
+          <option value="gps-jamming">GPS Jamming</option>
+          <option value="gps-spoofing">GPS Spoofing</option>
+          <option value="multi-failure">Multi Failure</option>
+        </select>
+        <label style="margin-left:8px">Evasion Pattern:</label>
+        <select id="fleet-evasion-select">
+          <option value="RANDOM_SCATTER">Random Scatter</option>
+          <option value="SUNBURST">Sunburst</option>
+          <option value="SPLIT_PAIRS">Split Pairs</option>
+          <option value="TERRAIN_HUG">Terrain Hug</option>
+        </select>
+      </div>
+      <div id="fleet-drone-grid" class="layers-grid" style="margin-top:10px"></div>
+    </section>
+
+    <!-- INTELLIGENCE REPORTS -->
+    <section class="card" id="intel-section">
+      <h2>INTELLIGENCE REPORTS — Bans / Spoofs / Jammers / Timeline</h2>
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <label>Ban Events</label>
+          <span id="intel-bans">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Active Spoofs</label>
+          <span id="intel-spoofs">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Est. Jammers</label>
+          <span id="intel-jammers">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Timeline Events</label>
+          <span id="intel-timeline-count">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Critical Events</label>
+          <span id="intel-critical">0</span>
+        </div>
+        <div class="edge-stat">
+          <label>Mission Recording</label>
+          <span id="intel-recording" class="edge-off">OFF</span>
+        </div>
+      </div>
+      <div class="button-row" style="margin-top:10px">
+        <button id="btn-intel-export" class="btn btn-tick">EXPORT FOR AI TRAINING</button>
+        <button id="btn-intel-timeline" class="btn btn-tick">VIEW FULL TIMELINE</button>
+      </div>
+      <div id="intel-timeline-log" class="demo-log" style="margin-top:8px;max-height:200px;overflow-y:auto"></div>
+    </section>
+
     <!-- DEMO PANEL -->
     <section class="card demo-section">
       <h2>INTERACTIVE DEMOS — Click to Run</h2>

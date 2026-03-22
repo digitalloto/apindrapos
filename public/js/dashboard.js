@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupControls();
   setupAutoNavControls();
   setupDeviceGps();
+  setupFleetControls();
   initMap();
   connectWebSocket();
 });
@@ -322,6 +323,8 @@ function connectWebSocket() {
     const msg = JSON.parse(event.data);
     if (msg.type === 'fusion') {
       updateDashboard(msg.data, msg.layers);
+    } else if (msg.type === 'fleet') {
+      updateFleetDashboard(msg.data);
     } else if (msg.type === 'demo') {
       addDemoLog(msg.step);
       // Auto-stop demo display if complete
@@ -948,6 +951,258 @@ function addDeviceGpsLog(message) {
   entry.innerHTML = `<span class="log-time">${now}</span><span class="log-step">${message}</span>`;
   log.insertBefore(entry, log.firstChild);
   while (log.children.length > 10) log.removeChild(log.lastChild);
+}
+
+// ═══════════════════════════════════════════
+// FLEET SWARM SYSTEM — Multi-Drone Controls
+// ═══════════════════════════════════════════
+let fleetDroneMarkers = {};
+
+function setupFleetControls() {
+  const initBtn = document.getElementById('btn-fleet-init');
+  const startBtn = document.getElementById('btn-fleet-start');
+  const stopBtn = document.getElementById('btn-fleet-stop');
+  const evadeBtn = document.getElementById('btn-fleet-evade');
+  const reformBtn = document.getElementById('btn-fleet-reform');
+  const formSel = document.getElementById('fleet-formation-select');
+  const scenSel = document.getElementById('fleet-scenario-select');
+  const evaSel = document.getElementById('fleet-evasion-select');
+
+  if (initBtn) initBtn.addEventListener('click', () => {
+    fetch('/api/fleet/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ droneCount: 5, platform: 'small-drone', formation: formSel ? formSel.value : 'V_SHAPE' })
+    }).then(r => r.json()).then(() => {
+      document.getElementById('fleet-status').textContent = 'READY';
+      document.getElementById('fleet-status').className = 'edge-on';
+      addIntelLog('Fleet initialized with 5 drones');
+    });
+  });
+
+  if (startBtn) startBtn.addEventListener('click', () => {
+    fetch('/api/fleet/start', { method: 'POST' }).then(() => {
+      document.getElementById('fleet-status').textContent = 'RUNNING';
+      document.getElementById('fleet-status').className = 'edge-on';
+    });
+  });
+
+  if (stopBtn) stopBtn.addEventListener('click', () => {
+    fetch('/api/fleet/stop', { method: 'POST' }).then(() => {
+      document.getElementById('fleet-status').textContent = 'STOPPED';
+      document.getElementById('fleet-status').className = 'edge-off';
+    });
+  });
+
+  if (evadeBtn) evadeBtn.addEventListener('click', () => {
+    const pattern = evaSel ? evaSel.value : 'RANDOM_SCATTER';
+    fetch('/api/fleet/evade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'Manual evasion trigger', pattern })
+    });
+  });
+
+  if (reformBtn) reformBtn.addEventListener('click', () => {
+    fetch('/api/fleet/reform', { method: 'POST' });
+  });
+
+  if (formSel) formSel.addEventListener('change', (e) => {
+    fetch('/api/fleet/formation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formation: e.target.value })
+    });
+  });
+
+  if (scenSel) scenSel.addEventListener('change', (e) => {
+    fetch('/api/fleet/scenario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: e.target.value })
+    });
+  });
+
+  // Intel buttons
+  const exportBtn = document.getElementById('btn-intel-export');
+  if (exportBtn) exportBtn.addEventListener('click', () => {
+    fetch('/api/report/export')
+      .then(r => r.json())
+      .then(data => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `upie-training-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        addIntelLog('Training data exported as JSON');
+      });
+  });
+
+  const timelineBtn = document.getElementById('btn-intel-timeline');
+  if (timelineBtn) timelineBtn.addEventListener('click', () => {
+    fetch('/api/report/timeline')
+      .then(r => r.json())
+      .then(events => {
+        const log = document.getElementById('intel-timeline-log');
+        if (!log) return;
+        log.innerHTML = '';
+        for (const evt of events.slice(-50).reverse()) {
+          addIntelLogEntry(log, evt);
+        }
+      });
+  });
+}
+
+function updateFleetDashboard(fleetData) {
+  if (!fleetData) return;
+
+  const el = (id) => document.getElementById(id);
+  if (el('fleet-drone-count')) el('fleet-drone-count').textContent = Object.keys(fleetData.droneResults || {}).length;
+
+  if (fleetData.formation) {
+    if (el('fleet-formation')) el('fleet-formation').textContent = fleetData.formation.formation || '—';
+    if (el('fleet-integrity')) {
+      const integrity = Math.round((fleetData.formation.formationIntegrity || 0) * 100);
+      el('fleet-integrity').textContent = integrity + '%';
+    }
+  }
+
+  if (el('fleet-threat')) {
+    const threat = fleetData.threatLevel || 0;
+    el('fleet-threat').textContent = threat;
+    el('fleet-threat').style.color = threat > 70 ? '#e74c3c' : threat > 40 ? '#e67e22' : '#2ecc71';
+  }
+
+  if (fleetData.hiveMind && el('fleet-hivemind')) {
+    const lastDec = fleetData.hiveMind.lastDecision;
+    el('fleet-hivemind').textContent = lastDec ? lastDec.decision : 'ACTIVE';
+  }
+
+  if (fleetData.evasion && el('fleet-evasion')) {
+    if (fleetData.evasion.evasionActive) {
+      el('fleet-evasion').textContent = `EVADING (${fleetData.evasion.reformIn || 0})`;
+      el('fleet-evasion').className = 'edge-off';
+    } else {
+      el('fleet-evasion').textContent = 'CLEAR';
+      el('fleet-evasion').className = 'edge-on';
+    }
+  }
+
+  if (fleetData.mesh && el('fleet-mesh-msgs')) {
+    el('fleet-mesh-msgs').textContent = fleetData.mesh.totalMessagesSent || 0;
+  }
+
+  if (fleetData.droneResults) {
+    updateFleetDroneGrid(fleetData.droneResults);
+    updateFleetMap(fleetData.droneResults);
+  }
+
+  updateIntelDashboard(fleetData);
+}
+
+function updateFleetDroneGrid(droneResults) {
+  const grid = document.getElementById('fleet-drone-grid');
+  if (!grid) return;
+
+  for (const [droneId, result] of Object.entries(droneResults)) {
+    let card = document.getElementById(`fleet-drone-${droneId}`);
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'layer-card cat-satellite active';
+      card.id = `fleet-drone-${droneId}`;
+      grid.appendChild(card);
+    }
+
+    const status = result.status || 'ACTIVE';
+    const statusColor = status === 'EVADING' ? '#e74c3c' : status === 'RETURNING' ? '#e67e22' : '#2ecc71';
+    const conf = result.confidence ? result.confidence.score : 0;
+
+    card.className = `layer-card active ${status === 'EVADING' ? 'cat-frontier' : 'cat-satellite'}`;
+    card.innerHTML = `
+      <div class="layer-id">${droneId}</div>
+      <div class="layer-name">${result.callsign || droneId}</div>
+      <div class="layer-coords">
+        <span class="layer-lat">${result.lat ? result.lat.toFixed(4) : '—'}</span>
+        <span class="layer-lon">${result.lon ? result.lon.toFixed(4) : '—'}</span>
+      </div>
+      <div class="layer-accuracy" style="color:${statusColor}">${status}</div>
+      <div class="layer-accuracy">Conf: ${conf}% | Batt: ${result.batteryPercent || 100}%</div>
+    `;
+  }
+}
+
+function updateFleetMap(droneResults) {
+  if (!mapInstance) return;
+
+  for (const [droneId, result] of Object.entries(droneResults)) {
+    if (!result.lat || !result.lon) continue;
+
+    const isEvading = result.status === 'EVADING';
+    const color = isEvading ? '#e74c3c' : '#00e5ff';
+
+    if (!fleetDroneMarkers[droneId]) {
+      fleetDroneMarkers[droneId] = L.circleMarker([result.lat, result.lon], {
+        radius: 7, color, fillColor: color, fillOpacity: 0.8, weight: 2
+      }).addTo(mapInstance);
+    }
+
+    fleetDroneMarkers[droneId].setLatLng([result.lat, result.lon]);
+    fleetDroneMarkers[droneId].setStyle({ color, fillColor: color });
+    fleetDroneMarkers[droneId].bindTooltip(
+      `${result.callsign || droneId}<br>${result.lat.toFixed(6)}, ${result.lon.toFixed(6)}<br>` +
+      `Status: ${result.status} | Conf: ${result.confidence ? result.confidence.score : 0}%`,
+      { direction: 'top' }
+    );
+  }
+}
+
+function updateIntelDashboard(fleetData) {
+  const el = (id) => document.getElementById(id);
+
+  if (fleetData && fleetData.cycle && fleetData.cycle % 10 === 0) {
+    fetch('/api/report/intelligence')
+      .then(r => r.json())
+      .then(intel => {
+        if (el('intel-bans')) el('intel-bans').textContent = intel.bans ? intel.bans.summary.totalBanEvents : 0;
+        if (el('intel-spoofs')) el('intel-spoofs').textContent = intel.spoofs ? intel.spoofs.summary.activeSpoofs : 0;
+        if (el('intel-jammers')) el('intel-jammers').textContent = intel.jammers ? intel.jammers.summary.estimatedJammers : 0;
+        if (el('intel-timeline-count')) el('intel-timeline-count').textContent = intel.mission ? intel.mission.summary.totalEvents : 0;
+        if (el('intel-critical')) el('intel-critical').textContent = intel.mission ? intel.mission.summary.criticalEvents : 0;
+        if (el('intel-recording')) {
+          el('intel-recording').textContent = intel.mission && intel.mission.recording ? 'REC' : 'OFF';
+          el('intel-recording').className = intel.mission && intel.mission.recording ? 'edge-on' : 'edge-off';
+        }
+      }).catch(() => {});
+  }
+}
+
+function addIntelLog(message) {
+  const log = document.getElementById('intel-timeline-log');
+  if (!log) return;
+  const now = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'demo-log-entry';
+  entry.innerHTML = `<span class="log-time">${now}</span><span class="log-step">${message}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+let lastIntelEventId = '';
+function addIntelLogEntry(log, evt) {
+  if (evt.eventId === lastIntelEventId) return;
+  lastIntelEventId = evt.eventId;
+  const colors = { CRITICAL: '#e74c3c', HIGH: '#e67e22', MEDIUM: '#f1c40f', LOW: '#2ecc71', INFO: '#1a73e8' };
+  const color = colors[evt.severity] || '#fff';
+  const time = new Date(evt.timestamp).toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'demo-log-entry';
+  entry.innerHTML = `<span class="log-time">${time}</span>` +
+    `<span style="color:${color};font-weight:bold">[${evt.type}]</span> ` +
+    `<span class="log-step">${evt.message || ''}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 50) log.removeChild(log.lastChild);
 }
 
 function updateAlerts(alerts) {
